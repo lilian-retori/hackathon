@@ -1,0 +1,11 @@
+﻿municipio,codigo_ibge,tipo_residuo,vres_florestal,ano,vres_agr,Vres_Total_Ton,Riqueza_Perdida_RS,Polo_Destino,Distancia_Km,Custo_Frete_RS,Lucro_Liquido_Estimado
+Diamantina,0.0,Pinus,300000.0,2022,0.0,300000.0,135000000.0,Sete Lagoas (Siderurgia),150.95,81511848.61,53488151.39
+Governador Valadares,0.0,Eucalipto,250000.0,2022,0.0,250000.0,112500000.0,Ipatinga (Vale do Aço),91.71,41271036.04,71228963.96000001
+Itabira,0.0,Eucalipto,500000.0,2022,0.0,500000.0,225000000.0,João Monlevade (Siderurgia),21.95,19758182.78,205241817.22
+João Pinheiro,0.0,Eucalipto,400000.0,2022,0.0,400000.0,180000000.0,Sete Lagoas (Siderurgia),278.8,200739564.73,-20739564.72999999
+Montes Claros,0.0,Pinus,200000.0,2022,0.0,200000.0,90000000.0,Sete Lagoas (Siderurgia),304.83,109737208.4,-19737208.400000006
+Paracatu,0.0,Eucalipto,100000.0,2022,950000.0,1050000.0,472500000.0,Uberaba (Biocombustíveis),300.55,568044132.76,-95544132.75999999
+Patos de Minas,,,0.0,2022,450000.0,450000.0,202500000.0,Uberaba (Biocombustíveis),196.18,158903177.83,43596822.16999999
+Perdizes,,,0.0,2022,420000.0,420000.0,189000000.0,Uberaba (Biocombustíveis),79.84,60361281.87,128638718.13
+Uberaba,0.0,Eucalipto,80000.0,2022,880000.0,960000.0,432000000.0,Uberaba (Biocombustíveis),0.0,0.0,432000000.0
+Unaí,0.0,Eucalipto,150000.0,2022,1200000.0,1350000.0,607500000.0,Uberaba (Biocombustíveis),390.73,949474684.15,-341974684.15

@@ -1,0 +1,11 @@
+﻿municipio,ano,Vres_Total_Ton,Riqueza_Perdida_RS,Polo_Destino,Distancia_Km,Custo_Frete_RS,Lucro_Liquido_Estimado,classe_vres,classe_lucro,tipo_hub
+Diamantina,2022,300000.0,135000000.0,Sete Lagoas (Siderurgia),150.95,81511848.61,53488151.39,Baixo Vres,Lucro positivo,Oportunidade nicho
+Governador Valadares,2022,250000.0,112500000.0,Ipatinga (Vale do Aço),91.71,41271036.04,71228963.96000001,Baixo Vres,Lucro positivo,Oportunidade nicho
+Itabira,2022,500000.0,225000000.0,João Monlevade (Siderurgia),21.95,19758182.78,205241817.22,Alto Vres,Lucro positivo,Hub natural
+João Pinheiro,2022,400000.0,180000000.0,Sete Lagoas (Siderurgia),278.8,200739564.73,-20739564.72999999,Baixo Vres,Lucro negativo,Baixa prioridade
+Montes Claros,2022,200000.0,90000000.0,Sete Lagoas (Siderurgia),304.83,109737208.4,-19737208.400000006,Baixo Vres,Lucro negativo,Baixa prioridade
+Paracatu,2022,1050000.0,472500000.0,Uberaba (Biocombustíveis),300.55,568044132.76,-95544132.75999999,Alto Vres,Lucro negativo,Hub travado
+Patos de Minas,2022,450000.0,202500000.0,Uberaba (Biocombustíveis),196.18,158903177.83,43596822.16999999,Alto Vres,Lucro positivo,Hub natural
+Perdizes,2022,420000.0,189000000.0,Uberaba (Biocombustíveis),79.84,60361281.87,128638718.13,Baixo Vres,Lucro positivo,Oportunidade nicho
+Uberaba,2022,960000.0,432000000.0,Uberaba (Biocombustíveis),0.0,0.0,432000000.0,Alto Vres,Lucro positivo,Hub natural
+Unaí,2022,1350000.0,607500000.0,Uberaba (Biocombustíveis),390.73,949474684.15,-341974684.15,Alto Vres,Lucro negativo,Hub travado

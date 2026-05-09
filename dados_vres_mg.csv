@@ -1,0 +1,6 @@
+﻿municipio,codigo_ibge,produto,qtd_produzida,ano,vres,riqueza_potencial,polo_destino,distancia_km,custo_logistico,lucro_bruto,lucro_liquido
+João Pinheiro,0,Biomassa agrícola/florestal,75420,2022,18855.0,12255750.0,Sete Lagoas (Siderurgia),278.8049510179074,7885301.027163967,12255750.0,4370448.972836033
+Itamarandiba,0,Biomassa agrícola/florestal,68210,2022,17052.5,11084125.0,Ipatinga (Siderurgia),181.37747659783423,4639409.129526853,11084125.0,6444715.870473147
+Curvelo,0,Biomassa agrícola/florestal,42150,2022,10537.5,6849375.0,Sete Lagoas (Siderurgia),80.02292968557,1264862.432342541,6849375.0,5584512.5676574595
+Buritizeiro,0,Biomassa agrícola/florestal,39800,2022,9950.0,6467500.0,Sete Lagoas (Siderurgia),245.62208314772008,3665909.590979722,6467500.0,2801590.409020278
+Três Marias,0,Biomassa agrícola/florestal,35600,2022,8900.0,5785000.0,Sete Lagoas (Siderurgia),174.18064256503715,2325311.578243246,5785000.0,3459688.421756754
