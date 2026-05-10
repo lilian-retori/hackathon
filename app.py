@@ -357,7 +357,7 @@ with tab5:
     col_a, col_b, col_c = st.columns(3)
     col_a.metric("Biomassa (t)", f"{df_mun['Vres_Total_Ton']:,.0f}".replace(",", "."))
     col_b.metric("Dinheiro queimado hoje (R$)", f"{df_mun['Riqueza_Perdida_RS']:,.0f}".replace(",", "."))
-=======
+
 from pathlib import Path
 LOGO_PATH = Path("Logo.jpg")  # nome do arquivo da logo
 
