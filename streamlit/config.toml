@@ -1,10 +1,6 @@
 [theme]
-# Fundo da página inteira
 backgroundColor = "#03254D"
-# Cartões (tabs, caixas, tabelas) em azul um pouco mais claro
 secondaryBackgroundColor = "#08366A"
-# Cor dos botões, sliders, radio, checkbox
 primaryColor = "#550C18"
-# Texto em branco para contrastar com o fundo escuro
 textColor = "#FFFFFF"
 font = "sans serif"
