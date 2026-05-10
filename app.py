@@ -2,63 +2,9 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import base64
 import numpy as np
-from geopy.distance import geodesic
-
-# =========================
-# FUNÇÃO PARA PREPARAR DADOS INDUSTRIAIS (ADICIONE AQUI)
-# =========================
-def preparar_dados_industriais():
-    """
-    Converte os dados industriais da sua mensagem inicial em DataFrame
-    com: nome_empre, cidade, industria, consumo_ton_ano, lat, lon, tipo_residuo_exigido, demanda_mensal_ton
-    """
-    import pandas as pd  # Garante que o pandas esteja disponível aqui
-    
-    # DADOS DE CIMENTO (da sua primeira tabela)
-    cement_data = [
-        ["EMPRESA DE CIMENTOS LIZ S.A", "VESPASIANO", "Cimento", 131888.63, -43.92484785, -19.68546445],
-        ["INTERCEMENT BRASIL S.A.", "IJACI", "Cimento", 125965.52, -44.94068823, -21.19281404],
-        ["CSN CIMENTOS BRASIL S.A.", "PEDRO LEOPOLDO", "Cimento", 104328.31, -44.05710332, -19.60800416],
-        ["VOTORANTIM CIMENTOS S.A.", "ITAÚ DE MINAS", "Cimento", 89713.37, -46.76315471, -20.76110507],
-        ["COMPANHIA NACIONAL DE CIMENTO - CNC", "SETE LAGOAS", "Cimento", 85021.06, -44.27433569, -19.51343785],
-        ["CSN CIMENTOS BRASIL S.A.", "BARROSO", "Cimento", 130862.98, -43.9860617, -21.1816831],
-        ["CSN CIMENTOS S.A.", "ARCOS", "Cimento", 70417.63, -45.57895294, -20.31299859],
-        ["CSN CIMENTOS BRASIL S.A.", "MONTES CLOROS", "Cimento", 50986.93, -43.89133274, -16.67246921],
-        ["INTERCEMENT BRASIL S.A.", "SANTANA DO PARAÍSO", "Cimento", 12894.91, -42.47959725, -19.47643347],
-        ["CSN CIMENTOS BRASIL S.A.", "BARBACENA", "Cimento", 709.22, -43.7684493, -21.21278304],
-        ["INTERCEMENT BRASIL S.A.", "PEDRO LEOPOLDO", "Cimento", 664.33, -44.0278412, -19.62747641]
-    ]
-    
-    # DADOS DE SIDERURGIA (da sua segunda tabela)
-    steel_data = [
-        ["USINAS SIDERURGICAS DE MINAS GERAIS S/A. USIMINAS", "IPATINGA", "Siderurgia", 858601.8833, -42.55697038, -19.49367598],
-        ["GERDAU ACOMINAS S/A", "OURO BRANCO", "Siderurgia", 533871.0147, -43.74237377, -20.54547116],
-        ["APERAM INOX AMERICA DO SUL S.A.", "TIMÓTEO", "Siderurgia", 403131.6518, -42.64340843, -19.53140653],
-        ["VALLOUREC SOLUCOES TUBULARES DO BRASIL S.A.", "JECEABA", "Siderurgia", 331233.6585, -43.97277466, -20.57795847],
-        ["ARCELORMITTAL BRASIL S.A.", "JUIZ DE FORA", "Siderurgia", 310532.6138, -43.46263449, -21.62762464],
-        ["ARCELORMITTAL BRASIL S.A.", "JOÃO MONLEVADE", "Siderurgia", 309656.3824, -43.13013906, -19.83023777],
-        ["GERDAU ACOS LONGOS S.A.", "DIVINÓPOLIS", "Siderurgia", 87530.5166, -44.87941954, -20.15452264],
-        ["VALLOUREC SOLUCOES TUBULARES DO BRASIL S.A.", "BELO HORIZONTE", "Siderurgia", 78070.51652, -44.01149263, -19.97010911],
-        ["GERDAU ACOS LONGOS S.A.", "BARÃO DE COCAIS", "Siderurgia", 31655.35598, -43.47902631, -19.93711487]
-    ]
-    
-    # Combine e crie DataFrame
-    all_data = cement_data + steel_data
-    cols = ["nome_empre", "cidade", "industria", "consumo_ton_ano", "lat", "lon"]
-    df_industrias = pd.DataFrame(all_data, columns=cols)
-    
-    # Mapeia tipo de indústria para tipo de resíduo exigido (suposições técnicas razoáveis)
-    df_industrias["tipo_residuo_exigido"] = df_industrias["industria"].map({
-        "Cimento": "Agro_Seco",      # Casca de arroz, casca de café - seco, baixo teor de cinzas
-        "Siderurgia": "Lenhoso"      # Lenha de eucalipto/pinus para carvão vegetal
-    })
-    
-    # Converte consumo anual para mensal (para facilitar comparação com oferta municipal)
-    df_industrias["demanda_mensal_ton"] = df_industrias["consumo_ton_ano"] / 12
-    
-    return df_industrias
 
 # =========================
 # CONFIG BÁSICA
@@ -72,6 +18,7 @@ st.set_page_config(
 
 BASE_DIR = Path(__file__).parent
 DATA_PATH = BASE_DIR / "dados_pam_pevs_dashboard_mg.csv"
+IND_PATH = BASE_DIR / "industrias_biomassa_mg.csv"
 
 possible_logos = [
     BASE_DIR / "Logo.png",
@@ -79,7 +26,6 @@ possible_logos = [
     BASE_DIR / "logo.png",
     BASE_DIR / "logo.jpg",
 ]
-
 LOGO_PATH = next((p for p in possible_logos if p.exists()), None)
 
 # =========================
@@ -121,7 +67,6 @@ div[data-testid="stTable"] {
     padding: 0.5rem;
 }
 
-/* Destaque visual extra para o 3º card (Lucro estimado) */
 div[data-testid="column"]:nth-of-type(3) div[data-testid="stMetric"] {
     background: linear-gradient(135deg, #1FAF8B 0%, #17856A 100%);
     border: 1px solid rgba(255,255,255,0.15);
@@ -176,7 +121,6 @@ ul[role="listbox"] li:hover {
     color: #03254D !important;
 }
 
-/* Expander da sidebar */
 div[data-testid="stExpander"] details {
     background-color: rgba(255,255,255,0.04);
     border-radius: 10px;
@@ -205,8 +149,17 @@ def classifica_distancia(km):
         return "Médio"
     return "Longe"
 
+def distancia_km(lat1, lon1, lat2, lon2):
+    r = 6371.0
+    lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    c = 2 * np.arcsin(np.sqrt(a))
+    return r * c
+
 # =========================
-# COORDENADAS
+# COORDENADAS MUNICIPAIS
 # =========================
 
 coords_municipios = {
@@ -235,21 +188,24 @@ def load_data():
     if not DATA_PATH.exists():
         st.error("Arquivo de dados não encontrado: dados_pam_pevs_dashboard_mg.csv")
         st.stop()
-
     df = pd.read_csv(DATA_PATH)
-
-    def get_lat(municipio):
-        return coords_municipios.get(municipio, (None, None))[0]
-
-    def get_lon(municipio):
-        return coords_municipios.get(municipio, (None, None))[1]
-
-    df["lat"] = df["municipio"].apply(get_lat)
-    df["lon"] = df["municipio"].apply(get_lon)
-
+    df["lat"] = df["municipio"].map(lambda m: coords_municipios.get(m, (None, None))[0])
+    df["lon"] = df["municipio"].map(lambda m: coords_municipios.get(m, (None, None))[1])
     return df
 
+@st.cache_data
+def preparar_dados_industriais():
+    if not IND_PATH.exists():
+        st.error("Arquivo industrial não encontrado: industrias_biomassa_mg.csv")
+        st.stop()
+    df_ind = pd.read_csv(IND_PATH)
+    df_ind["demanda_mensal_ton"] = pd.to_numeric(df_ind["demanda_mensal_ton"], errors="coerce").fillna(0)
+    df_ind["lat"] = pd.to_numeric(df_ind["lat"], errors="coerce")
+    df_ind["lon"] = pd.to_numeric(df_ind["lon"], errors="coerce")
+    return df_ind
+
 df = load_data()
+df_industrias = preparar_dados_industriais()
 
 # =========================
 # SIDEBAR
@@ -266,8 +222,8 @@ st.sidebar.markdown("## Filtros")
 
 with st.sidebar.expander("Como usar", expanded=False):
     st.markdown("""
-1. Escolha o ano.  
-2. Escolha o tipo de lugar.  
+1. Escolha o ano.
+2. Escolha o tipo de lugar.
 3. Veja o mapa, os gráficos e simule o frete.
 """)
 
@@ -276,13 +232,13 @@ ano_sel = st.sidebar.selectbox("Ano", anos, index=len(anos) - 1)
 
 tipos_hub = ["Todos"] + sorted(df["tipo_hub"].dropna().unique())
 tipo_hub_sel = st.sidebar.selectbox("Tipo de lugar", tipos_hub)
-# Seletor de tipo de resíduo para o mapa de match
+
 residue_type_options = ["Lenhoso", "Agro_Seco", "Agro_Umido"]
 residue_type_sel = st.sidebar.selectbox(
-"Tipo de resíduo para análise",
-residue_type_options,
-index=0, # Padrão: Lenhoso
-help="Lenhoso = para siderúrgicas | Agro_Seco = para cimenteiras"
+    "Tipo de resíduo para análise",
+    residue_type_options,
+    index=0,
+    help="Lenhoso = para siderúrgicas | Agro_Seco = para cimenteiras"
 )
 st.session_state["residue_type_selector"] = residue_type_sel
 
@@ -290,11 +246,9 @@ df_filt = df[df["ano"] == ano_sel].copy()
 if tipo_hub_sel != "Todos":
     df_filt = df_filt[df_filt["tipo_hub"] == tipo_hub_sel]
 
-# Índice de Radar Biomassa = Vres_Total_Ton * Probabilidade_Atratividade
 if "Probabilidade_Atratividade" in df_filt.columns:
     df_filt["Radar_Biomassa"] = df_filt["Vres_Total_Ton"] * df_filt["Probabilidade_Atratividade"].fillna(0)
 else:
-    # fallback: se o CSV ainda não tiver probabilidade, assume 1 (não ideal, mas não quebra o app)
     df_filt["Radar_Biomassa"] = df_filt["Vres_Total_Ton"]
 
 if df_filt.empty:
@@ -306,19 +260,15 @@ if df_filt.empty:
 # =========================
 
 st.title("Do Fogo ao Lucro – Mapa de Oportunidades em MG")
-st.markdown(
-    "Veja **onde a biomassa hoje vira fumaça** e onde ela pode virar **dinheiro e energia limpa**."
-)
+st.markdown("Veja **onde a biomassa hoje vira fumaça** e onde ela pode virar **dinheiro e energia limpa**.")
 
-st.markdown(
-    """
+st.markdown("""
 Cada bolinha no mapa é um município de Minas Gerais.
 
 - **Biomassa** = resíduo de lavoura e floresta.
 - **Dinheiro jogado fora** = valor do que é queimado.
 - **Lucro** = quando vale a pena levar esse resíduo até a indústria.
-"""
-)
+""")
 
 # =========================
 # TABS
@@ -333,17 +283,15 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 ])
 
 # =========================
-# TAB 1 – RESUMO
+# TAB 1
 # =========================
 
 with tab1:
     st.subheader("Resumo rápido")
-
     col1, col2, col3, col4 = st.columns(4)
 
     total_vres = df_filt["Vres_Total_Ton"].sum()
     total_riqueza = df_filt["Riqueza_Perdida_RS"].sum()
-    total_lucro = df_filt["Lucro_Liquido_Estimado"].sum()
     hubs_nat = (df_filt["tipo_hub"] == "Hub natural").sum()
 
     col1.metric("Biomassa total (t)", fmt_num(total_vres))
@@ -365,275 +313,135 @@ with tab1:
     )
     st.dataframe(df_resumo, use_container_width=True)
 
-# ... [MANTENHA TUDO DO SEU app.py ATÉ A LINHA "with tab2:"] ...
+# =========================
+# TAB 2
+# =========================
 
-# =========================
-# TAB 2 – MAPA (COM MATCH REAL INDUSTRIA-MUNICÍPIO)
-# =========================
 with tab2:
+    st.subheader("Mapa de Oportunidades: Radar Biomassa")
 
-    st.subheader("Mapa de Oportunidades: Match Indústria - Resíduo")
-
-    # ===== PREPARAR DADOS (MUNICÍPIOS + INDUSTRIAS) =====
-    # 1. Carregar dados municipais (seu df_filt já tem Vres_*_Mensal e Probabilidade_Atratividade)
     df_mun = df_filt.copy()
-    
-    # 2. Preparar dados industriais (da função que já temos no topo do app.py)
-    BASE_DIR = Path(__file__).parent
-    DATA_PATH = BASE_DIR / "dados_pam_pevs_dashboard_mg.csv"
-    IND_PATH = BASE_DIR / "industrias_biomassa_mg.csv"
-    IND_PATH = BASE_DIR / "industrias_biomassa_mg.csv"
+    selected_type = st.session_state.get("residue_type_selector", "Lenhoso")
+    mun_supply_col = f"Vres_{selected_type}_Mensal"
+    if mun_supply_col not in df_mun.columns:
+        df_mun[mun_supply_col] = 0.0
+    df_mun_supply = df_mun[df_mun[mun_supply_col] > 0].copy()
 
-    @st.cache_data
-    def preparar_dados_industriais():
-        if not IND_PATH.exists():
-            st.error("Arquivo industrial não encontrado: industrias_biomassa_mg.csv")
-            st.stop()
+    df_ind = df_industrias[df_industrias["tipo_residuo_exigido"] == selected_type].copy()
+    df_ind_demand = df_ind[df_ind["demanda_mensal_ton"] > 0].copy()
 
-        df_ind = pd.read_csv(IND_PATH)
+    fig_map = go.Figure()
 
-        df_ind["demanda_mensal_ton"] = pd.to_numeric(df_ind["demanda_mensal_ton"], errors="coerce").fillna(0)
-        df_ind["lat"] = pd.to_numeric(df_ind["lat"], errors="coerce")
-        df_ind["lon"] = pd.to_numeric(df_ind["lon"], errors="coerce")
-
-        return df_ind
-    
-    # ===== CRIAR MAPA BASE =====
-    fig_map = px.scatter_mapbox(
-        lat=[],
-        lon=[],
-        zoom=4.7,
-        center={"lat": -19.5, "lon": -43.5},
-        height=700
-    )
-    
-    # ===== ADICIONAR OVERLAY DAS ESTRADAS (SE EXISTIR) =====
-    try:
-        with open("estradas_mg.png", "rb") as f:
-            img_bytes = f.read()
-        img_b64 = base64.b64encode(img_bytes).decode()
-        fig_map.update_layout(
-            mapbox_style="open-street-map",
-            paper_bgcolor="#03254D",
-            plot_bgcolor="#03254D",
-            font=dict(color="white"),
-            title=dict(
-                text=f"Mapa de Oportunidades: Radar Biomassa ({selected_type})",
-                font=dict(color="white", size=18),
-                x=0.01,
-                xanchor="left"
-            ),
-    legend=dict(
-        bgcolor="rgba(0,0,0,0)",
-        bordercolor="rgba(255,255,255,0.2)",
-        font=dict(color="white"),
-        yanchor="top",
-        y=0.99,
-        xanchor="left",
-        x=0.01
-    ),
-    margin=dict(l=10, r=10, t=60, b=10)
-)
-    except FileNotFoundError:
-        pass  # Continua sem overlay se não houver imagem
-    
-    # ===== ADICIONAR MUNICÍPIOS (OFERTA) =====
     if not df_mun_supply.empty:
-        fig_map.add_scattermapbox(
+        fig_map.add_trace(go.Scattermapbox(
             lat=df_mun_supply["lat"],
             lon=df_mun_supply["lon"],
             mode="markers",
             marker=dict(
-                size=df_mun_supply[mun_supply_col] / 200,  # Ajuste divisor para visualização
-                color="#F5F749",  # Amarelo (oferta disponível)
-                opacity=0.8
+                size=(df_mun_supply[mun_supply_col] / 200).clip(lower=6),
+                color="#F5F749",
+                opacity=0.85
             ),
             text=df_mun_supply["municipio"],
-            hoverinfo="text",
-            hovertemplate=
-            "<b>%{text}</b><br>" +
-            f"{selected_type} disponível: %{{marker.size:,.0f}} t/mês<extra></extra>",
-            customdata=df_mun_supply[mun_supply_col],
+            hovertemplate="<b>%{text}</b><br>" + f"{selected_type} disponível: %{marker.size:.0f} t/mês<extra></extra>",
             name="Oferta Municipal"
-        )
-    
-    # ===== ADICIONAR INDÚSTRIAS (DEMANDA) =====
+        ))
+
     if not df_ind_demand.empty:
-        fig_map.add_scattermapbox(
+        fig_map.add_trace(go.Scattermapbox(
             lat=df_ind_demand["lat"],
             lon=df_ind_demand["lon"],
             mode="markers",
             marker=dict(
-                size=df_ind_demand["demanda_mensal_ton"] / 150,  # Divisor diferente para indústrias
-                color="#1FAF8B",  # Verde (demanda industrial)
+                size=(df_ind_demand["demanda_mensal_ton"] / 150).clip(lower=7),
+                color="#1FAF8B",
                 symbol="square",
-                opacity=0.9
+                opacity=0.95
             ),
             text=df_ind_demand["nome_empre"],
-            hoverinfo="text",
-            hovertemplate=
-            "<b>%{text}</b><br>" +
-            f"Demanda de {selected_type}: %{{marker.size:,.0f}} t/mês<extra></extra>",
-            customdata=df_ind_demand["demanda_mensal_ton"],
+            hovertemplate="<b>%{text}</b><br>" + f"Demanda de {selected_type}: %{marker.size:.0f} t/mês<extra></extra>",
             name="Demanda Industrial"
-        )
-    
-    # ===== ## ALTERAÇÃO CHAVE: LINHAS DE MATCH VIÁVEL COM PROBABILIDADE ## =====
+        ))
+
     match_lines = []
     total_matched_volume = 0
-    
-    # Parâmetros do modelo de probabilidade (devem bater com o Colab)
+
     INCLINACAO_PROB = 0.1
     RAIO_MEDIO_KM = 200.0
-    LIMIAR_PROB_VIABILIDADE = 0.4  # Só desenha matches com prob >= 40% ("moderadamente atrativo")
-    
+    LIMIAR_PROB_VIABILIDADE = 0.4
+
     for _, mun in df_mun_supply.iterrows():
-        mun_lat, mun_lon = mun["lat"], mun["lon"]
-        mun_supply_val = mun[mun_supply_col]
-        
         for _, ind in df_ind_demand.iterrows():
-            ind_lat, ind_lon = ind["lat"], ind["lon"]
-            ind_demand_val = ind["demanda_mensal_ton"]
-            
-            # Calcular distância geodésica
-            dist_km = geodesic((mun_lat, mun_lon), (ind_lat, ind_lon)).km
-            
-            # --- MODELO DE PROBABILIDADE LOGÍSTICA (IDENTICAL AO COLAB) ---
+            dist_km = distancia_km(mun["lat"], mun["lon"], ind["lat"], ind["lon"])
             prob = 1 / (1 + np.exp(INCLINACAO_PROB * (dist_km - RAIO_MEDIO_KM)))
-            
-            # Verificar se o match é viável (limiar de probabilidade)
+
             if prob >= LIMIAR_PROB_VIABILIDADE:
-                # Volume esperado que poderia ser trocado = min(oferta, demanda) * probabilidade
-                possible_match = min(mun_supply_val, ind_demand_val) * prob
-                
-                if possible_match > 0.1:  # Só mostra matches significativos
-                    # LINHA COM ESPESORA PROPORCIONAL À PROBABILIDADE (mais grossa = match mais forte)
-                    match_lines.append(dict(
-                        type="line",
-                        lon0=mun_lon, lat0=mun_lat,
-                        lon1=ind_lon, lat1=ind_lat,
-                        line=dict(
-                            width=1 + 4*prob,  # Espessura varia de 1 (prob=0) a 5 (prob=1)
-                            color="rgba(255,255,255,0.3)",
-                        ),
-                    ))
-                    total_matched_volume += possible_match  # Volume em toneladas/mês (valor esperado)
-    
-    # Adicionar linhas de match ao mapa
-    if match_lines:
-        fig_map.update_layout(shapes=match_lines)
-    
-    # ===== CONFIGURAR LAYOUT FINAL =====
+                possible_match = min(mun[mun_supply_col], ind["demanda_mensal_ton"]) * prob
+                if possible_match > 0.1:
+                    match_lines.append([
+                        mun["lon"], mun["lat"],
+                        ind["lon"], ind["lat"]
+                    ])
+                    total_matched_volume += possible_match
+
+    for line in match_lines:
+        fig_map.add_trace(go.Scattermapbox(
+            lon=[line[0], line[2]],
+            lat=[line[1], line[3]],
+            mode="lines",
+            line=dict(width=2, color="rgba(255,255,255,0.25)"),
+            hoverinfo="skip",
+            showlegend=False
+        ))
+
     fig_map.update_layout(
-    mapbox_style="open-street-map",
-    paper_bgcolor="#03254D",
-    plot_bgcolor="#03254D",
-    font=dict(color="white"),
-    title_font=dict(color="white", size=18),
-    legend=dict(
-        bgcolor="rgba(0,0,0,0)",
-        bordercolor="rgba(255,255,255,0.2)",
-        yanchor="top",
-        y=0.99,
-        xanchor="left",
-        x=0.01,
-        font=dict(color="white")
-    ),
-    margin=dict(l=10, r=10, t=60, b=10),
-    title=f"Mapa de Oportunidades: Radar Biomassa ({selected_type})"
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(lat=-19.5, lon=-43.5),
+            zoom=4.7
+        ),
+        paper_bgcolor="#03254D",
+        plot_bgcolor="#03254D",
+        font=dict(color="white"),
+        title=dict(
+            text=f"Mapa de Oportunidades: Radar Biomassa ({selected_type})",
+            font=dict(color="white", size=18),
+            x=0.01,
+            xanchor="left"
+        ),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="white")
+        ),
+        margin=dict(l=10, r=10, t=60, b=10)
     )
-    
+
     st.plotly_chart(fig_map, use_container_width=True)
-    
-    # ===== MÉTRICAS DE MATCH (ATUALIZADAS PARA PROBABILIDADE) =====
+
     col1, col2, col3 = st.columns(3)
-    
     total_mun_supply = df_mun_supply[mun_supply_col].sum() if not df_mun_supply.empty else 0
     total_ind_demand = df_ind_demand["demanda_mensal_ton"].sum() if not df_ind_demand.empty else 0
-    
-    col1.metric(
-        f"Oferta Municipal Mensal ({selected_type})",
-        f"{total_mun_supply:,.0f} t/mês".replace(",", ".")
-    )
-    col2.metric(
-        f"Demanda Industrial Mensal ({selected_type})",
-        f"{total_ind_demand:,.0f} t/mês".replace(",", ".")
-    )
+
+    col1.metric(f"Oferta Municipal Mensal ({selected_type})", f"{total_mun_supply:,.0f} t/mês".replace(",", "."))
+    col2.metric(f"Demanda Industrial Mensal ({selected_type})", f"{total_ind_demand:,.0f} t/mês".replace(",", "."))
     col3.metric(
         "Volume Match Esperado Mensal",
         f"{total_matched_volume:,.0f} t/mês".replace(",", "."),
         delta=f"{(total_matched_volume / max(total_ind_demand, 1) * 100):.1f}% da demanda atendida"
     )
-    
-    # ===== LEGENDA E EXPLICAÇÃO (ATUALIZADA) =====
-    st.markdown(
-        """
-        - **🟡 Círculos Amarelos**: Municípios com oferta disponível do tipo selecionado  
-        (tamanho = toneladas/mês disponíveis)  
-        - **🟢 Quadrados Verdes**: Indústrias com demanda do tipo selecionado  
-        (tamanho = toneladas/mês demandadas; quadrado = indústria)  
-        - **⚪ Linhas Brancas**: Conexões viáveis onde:  
-        • Tipo de resíduo corresponde  
-        • Probabilidade de match ≥ 40% (modelo logístico: 50% a 200 km)  
-        • Espessura da linha = força do match (quanto mais grossa, maior a probabilidade)  
-        • Volume trocado = min(oferta municipal, demanda industrial) × probabilidade  
-        """
-    )
-    
-    # ===== TABELA DE MATCHES DETALHADOS (OPCIONAL MAS ÚTIL) =====
-    with st.expander("Ver detalhes dos matches viáveis"):
-        if match_lines and not df_mun_supply.empty and not df_ind_demand.empty:
-            match_details = []
-            for _, mun in df_mun_supply.iterrows():
-                for _, ind in df_ind_demand.iterrows():
-                    dist_km = geodesic((mun["lat"], mun["lon"]), (ind["lat"], ind["lon"])).km
-                    prob = 1 / (1 + np.exp(INCLINACAO_PROB * (dist_km - RAIO_MEDIO_KM)))
-                    if prob >= LIMIAR_PROB_VIABILIDADE:
-                        possible = min(mun[mun_supply_col], ind["demanda_mensal_ton"]) * prob
-                        if possible > 0.1:
-                            match_details.append({
-                                "Município": mun["municipio"],
-                                "Indústria": ind["nome_empre"],
-                                "Distância (km)": round(dist_km, 1),
-                                "Probabilidade": round(prob, 3),
-                                "Volume Match (t/mês)": round(possible, 1),
-                                "Oferta Município (t/mês)": round(mun[mun_supply_col], 1),
-                                "Demanda Indústria (t/mês)": round(ind["demanda_mensal_ton"], 1)
-                            })
-            
-            if match_details:
-                df_match = pd.DataFrame(match_details)
-                st.dataframe(
-                    df_match.sort_values("Volume Match (t/mês)", ascending=False),
-                    use_container_width=True,
-                    height=300
-                )
-            else:
-                st.info("Nenhum match viável encontrado para os filtros atuais.")
-        else:
-            st.info("Selecione um tipo de resíduo na sidebar para ver matches.")
 
-    # Instrução para o usuário (mantida)
-    st.info(
-        "💡 **Dica**: Use o seletor de 'Tipo de resíduo' na sidebar para alternar entre análise de lenhoso (para siderúrgicas) e agro seco (para cimenteiras). "
-        "O mapa mostrará apenas onde há correspondência real de tipo E volume."
-    )
+    st.markdown("""
+- **🟡 Círculos Amarelos**: Municípios com oferta disponível do tipo selecionado.
+- **🟢 Quadrados Verdes**: Indústrias com demanda do tipo selecionado.
+- **⚪ Linhas Brancas**: Conexões viáveis por tipo e probabilidade.
+""")
+
 # =========================
-# TAB 3 – RADAR BIOMASSA (ANTES: ONDE VALE A PENA)
+# TAB 3
 # =========================
 
 with tab3:
     st.subheader("Radar Biomassa – onde faz mais sentido atuar")
-
-    st.markdown(
-        """
-Cada bolinha é um município:
-
-- Eixo **X**: distância até a indústria (km).  
-- Eixo **Y**: **Índice Radar Biomassa** = biomassa disponível × atratividade logística.  
-- Quanto **maior a bolinha**, mais biomassa bruta existe ali.
-"""
-    )
 
     color_map = {
         "Hub natural": "#1FAF8B",
@@ -652,10 +460,10 @@ Cada bolinha é um município:
         hover_name="municipio",
         labels={
             "Distancia_Km": "Distância até a indústria (km)",
-            "Radar_Biomassa": "Índice Radar Biomassa (t ponderadas)",
+            "Radar_Biomassa": "Índice Radar Biomassa",
             "tipo_hub": "Tipo de lugar"
         },
-        title="Distância x Radar Biomassa: onde a biomassa 'puxa' mais forte"
+        title="Distância x Radar Biomassa"
     )
 
     fig_radar.update_layout(
@@ -665,10 +473,7 @@ Cada bolinha é um município:
         title_font=dict(color="white", size=18),
         xaxis=dict(title_font=dict(color="white"), tickfont=dict(color="white")),
         yaxis=dict(title_font=dict(color="white"), tickfont=dict(color="white")),
-        legend=dict(
-            bgcolor="rgba(0,0,0,0)",
-            font=dict(color="white")
-        )
+        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="white"))
     )
 
     st.plotly_chart(fig_radar, use_container_width=True)
@@ -683,7 +488,7 @@ Cada bolinha é um município:
             .head(10)
             .rename(columns={
                 "municipio": "Município",
-                "Radar_Biomassa": "Radar Biomassa (t ponderadas)",
+                "Radar_Biomassa": "Radar Biomassa",
                 "Vres_Total_Ton": "Biomassa total (t)",
                 "tipo_hub": "Tipo de lugar",
                 "Polo_Destino": "Indústria mais próxima",
@@ -698,35 +503,23 @@ Cada bolinha é um município:
         df_garg = df_filt[
             (df_filt["Vres_Total_Ton"] >= vres_mediana) &
             (df_filt["Radar_Biomassa"] < df_filt["Radar_Biomassa"].median())
-        ][
-            ["municipio", "Vres_Total_Ton", "Radar_Biomassa", "Polo_Destino", "Distancia_Km"]
-        ].sort_values(by="Radar_Biomassa")
+        ][["municipio", "Vres_Total_Ton", "Radar_Biomassa", "Polo_Destino", "Distancia_Km"]].sort_values(by="Radar_Biomassa")
 
         df_garg = df_garg.rename(columns={
             "municipio": "Município",
             "Vres_Total_Ton": "Biomassa (t)",
-            "Radar_Biomassa": "Radar Biomassa (t ponderadas)",
+            "Radar_Biomassa": "Radar Biomassa",
             "Polo_Destino": "Indústria mais próxima",
             "Distancia_Km": "Distância (km)",
         })
-
         st.dataframe(df_garg, use_container_width=True)
 
 # =========================
-# TAB 4 – E SE O FRETE MUDAR?
+# TAB 4
 # =========================
 
 with tab4:
     st.subheader("E se o frete ficasse mais barato?")
-
-    st.markdown(
-        """
-Arraste a barra e veja **quantos municípios passam a dar lucro**.
-
-- Frete caro = mais municípios travados.  
-- Frete barato = mais municípios com lucro positivo.
-"""
-    )
 
     custo_frete_novo = st.slider(
         "Custo de frete simulado (R$/km/tonelada)",
@@ -737,15 +530,10 @@ Arraste a barra e veja **quantos municípios passam a dar lucro**.
     )
 
     df_cenario = df_filt[["municipio", "Vres_Total_Ton", "Distancia_Km"]].copy()
-
     margem_unitaria = 600.0 - 150.0
     df_cenario["Riqueza_Perdida_RS"] = df_cenario["Vres_Total_Ton"] * margem_unitaria
-    df_cenario["Custo_Frete_RS"] = (
-        df_cenario["Distancia_Km"] * custo_frete_novo * df_cenario["Vres_Total_Ton"]
-    )
-    df_cenario["Lucro_Liquido_Estimado"] = (
-        df_cenario["Riqueza_Perdida_RS"] - df_cenario["Custo_Frete_RS"]
-    )
+    df_cenario["Custo_Frete_RS"] = df_cenario["Distancia_Km"] * custo_frete_novo * df_cenario["Vres_Total_Ton"]
+    df_cenario["Lucro_Liquido_Estimado"] = df_cenario["Riqueza_Perdida_RS"] - df_cenario["Custo_Frete_RS"]
 
     num_pos = (df_cenario["Lucro_Liquido_Estimado"] > 0).sum()
     st.markdown(f"### Municípios com lucro positivo neste cenário: {num_pos}")
@@ -762,7 +550,7 @@ Arraste a barra e veja **quantos municípios passam a dar lucro**.
     st.dataframe(df_cen_show, use_container_width=True)
 
 # =========================
-# TAB 5 – DETALHES DO MUNICÍPIO
+# TAB 5
 # =========================
 
 with tab5:
