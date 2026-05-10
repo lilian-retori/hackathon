@@ -332,7 +332,7 @@ fig_map.update_layout(
 
 st.plotly_chart(fig_map, use_container_width=True)
 
-        fig_map.update_layout(
+fig_map.update_layout(
             mapbox_style="open-street-map",
             paper_bgcolor="#03254D",
             plot_bgcolor="#03254D",
@@ -340,7 +340,7 @@ st.plotly_chart(fig_map, use_container_width=True)
             legend=dict(bgcolor="rgba(0,0,0,0)")
         )
 
-        st.plotly_chart(fig_map, use_container_width=True)
+st.plotly_chart(fig_map, use_container_width=True)
 
 # =========================
 # TAB 3 – LUCRO X DISTÂNCIA
