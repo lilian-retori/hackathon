@@ -356,6 +356,8 @@ with tab1:
     )
     st.dataframe(df_resumo, use_container_width=True)
 
+# ... [MANTENHA TUDO DO SEU app.py ATÉ A LINHA "with tab2:"] ...
+
 # =========================
 # TAB 2 – MAPA (COM MATCH REAL INDUSTRIA-MUNICÍPIO)
 # =========================
@@ -364,10 +366,10 @@ with tab2:
     st.subheader("Mapa de Oportunidades: Match Indústria - Resíduo")
 
     # ===== PREPARAR DADOS (MUNICÍPIOS + INDUSTRIAS) =====
-    # 1. Carregar dados municipais (seu df_filt já tem Vres_*_Mensal)
+    # 1. Carregar dados municipais (seu df_filt já tem Vres_*_Mensal e Probabilidade_Atratividade)
     df_mun = df_filt.copy()
     
-    # 2. Preparar dados industriais (da função que adicionamos acima)
+    # 2. Preparar dados industriais (da função que já temos no topo do app.py)
     df_ind = preparar_dados_industriais()
     
     # 3. Selecionar tipo de resíduo para análise (do session_state definido na sidebar)
@@ -375,7 +377,6 @@ with tab2:
     
     # 4. Filtrar municípios com oferta >0 do tipo selecionado
     mun_supply_col = f"Vres_{selected_type}_Mensal"
-    # Verifica se a coluna existe; se não, cria com zeros (fallback seguro)
     if mun_supply_col not in df_mun.columns:
         df_mun[mun_supply_col] = 0.0
     df_mun_supply = df_mun[df_mun[mun_supply_col] > 0].copy()
@@ -385,14 +386,6 @@ with tab2:
         (df_ind["tipo_residuo_exigido"] == selected_type) & 
         (df_ind["demanda_mensal_ton"] > 0)
     ].copy()
-    
-    # 6. Definir distâncias máximas por tipo de indústria (km)
-    max_haul_dist = {
-        "Lenhoso": 250,   # Siderurgia aceita maiores distâncias para carvão vegetal
-        "Agro_Seco": 150, # Cimento tem raio menor para resíduos agrícolas secos
-        "Agro_Umido": 100 # Biomass-power tem raio menor (menos comum no seu dados)
-    }
-    max_dist = max_haul_dist.get(selected_type, 150)
     
     # ===== CRIAR MAPA BASE =====
     fig_map = px.scatter_mapbox(
@@ -467,9 +460,14 @@ with tab2:
             name="Demanda Industrial"
         )
     
-    # ===== ADICIONAR LINHAS DE MATCH VIÁVEL =====
+    # ===== ## ALTERAÇÃO CHAVE: LINHAS DE MATCH VIÁVEL COM PROBABILIDADE ## =====
     match_lines = []
     total_matched_volume = 0
+    
+    # Parâmetros do modelo de probabilidade (devem bater com o Colab)
+    INCLINACAO_PROB = 0.1
+    RAIO_MEDIO_KM = 200.0
+    LIMIAR_PROB_VIABILIDADE = 0.4  # Só desenha matches com prob >= 40% ("moderadamente atrativo")
     
     for _, mun in df_mun_supply.iterrows():
         mun_lat, mun_lon = mun["lat"], mun["lon"]
@@ -482,19 +480,26 @@ with tab2:
             # Calcular distância geodésica
             dist_km = geodesic((mun_lat, mun_lon), (ind_lat, ind_lon)).km
             
-            # Verificar se está dentro do raio máximo permitido
-            if dist_km <= max_dist:
-                # Volume que poderia ser trocado = min(oferta municipal, demanda industrial)
-                possible_match = min(mun_supply_val, ind_demand_val)
+            # --- MODELO DE PROBABILIDADE LOGÍSTICA (IDENTICAL AO COLAB) ---
+            prob = 1 / (1 + np.exp(INCLINACAO_PROB * (dist_km - RAIO_MEDIO_KM)))
+            
+            # Verificar se o match é viável (limiar de probabilidade)
+            if prob >= LIMIAR_PROB_VIABILIDADE:
+                # Volume esperado que poderia ser trocado = min(oferta, demanda) * probabilidade
+                possible_match = min(mun_supply_val, ind_demand_val) * prob
                 
                 if possible_match > 0.1:  # Só mostra matches significativos
+                    # LINHA COM ESPESORA PROPORCIONAL À PROBABILIDADE (mais grossa = match mais forte)
                     match_lines.append(dict(
                         type="line",
                         lon0=mun_lon, lat0=mun_lat,
                         lon1=ind_lon, lat1=ind_lat,
-                        line=dict(width=1, color="rgba(255,255,255,0.3)"),
+                        line=dict(
+                            width=1 + 4*prob,  # Espessura varia de 1 (prob=0) a 5 (prob=1)
+                            color="rgba(255,255,255,0.3)",
+                        ),
                     ))
-                    total_matched_volume += possible_match
+                    total_matched_volume += possible_match  # Volume em toneladas/mês (valor esperado)
     
     # Adicionar linhas de match ao mapa
     if match_lines:
@@ -520,7 +525,7 @@ with tab2:
     
     st.plotly_chart(fig_map, use_container_width=True)
     
-    # ===== MÉTRICAS DE MATCH =====
+    # ===== MÉTRICAS DE MATCH (ATUALIZADAS PARA PROBABILIDADE) =====
     col1, col2, col3 = st.columns(3)
     
     total_mun_supply = df_mun_supply[mun_supply_col].sum() if not df_mun_supply.empty else 0
@@ -535,22 +540,23 @@ with tab2:
         f"{total_ind_demand:,.0f} t/mês".replace(",", ".")
     )
     col3.metric(
-        "Volume Match Viável Mensal",
+        "Volume Match Esperado Mensal",
         f"{total_matched_volume:,.0f} t/mês".replace(",", "."),
         delta=f"{(total_matched_volume / max(total_ind_demand, 1) * 100):.1f}% da demanda atendida"
     )
     
-    # ===== LEGENDA E EXPLICAÇÃO =====
+    # ===== LEGENDA E EXPLICAÇÃO (ATUALIZADA) =====
     st.markdown(
         """
         - **🟡 Círculos Amarelos**: Municípios com oferta disponível do tipo selecionado  
-          (tamanho = toneladas/mês disponíveis)  
+        (tamanho = toneladas/mês disponíveis)  
         - **🟢 Quadrados Verdes**: Indústrias com demanda do tipo selecionado  
-          (tamanho = toneladas/mês demandadas; quadrado = indústria)  
-        - **⚪ Linhas Brancas Finas**: Conexões viáveis onde:  
-          • Tipo de resíduo corresponde  
-          • Distância ≤ máximo aceitável pela indústria  
-          • Volume trocado = min(oferta municipal, demanda industrial)  
+        (tamanho = toneladas/mês demandadas; quadrado = indústria)  
+        - **⚪ Linhas Brancas**: Conexões viáveis onde:  
+        • Tipo de resíduo corresponde  
+        • Probabilidade de match ≥ 40% (modelo logístico: 50% a 200 km)  
+        • Espessura da linha = força do match (quanto mais grossa, maior a probabilidade)  
+        • Volume trocado = min(oferta municipal, demanda industrial) × probabilidade  
         """
     )
     
@@ -561,13 +567,15 @@ with tab2:
             for _, mun in df_mun_supply.iterrows():
                 for _, ind in df_ind_demand.iterrows():
                     dist_km = geodesic((mun["lat"], mun["lon"]), (ind["lat"], ind["lon"])).km
-                    if dist_km <= max_haul_dist.get(selected_type, 150):
-                        possible = min(mun[mun_supply_col], ind["demanda_mensal_ton"])
+                    prob = 1 / (1 + np.exp(INCLINACAO_PROB * (dist_km - RAIO_MEDIO_KM)))
+                    if prob >= LIMIAR_PROB_VIABILIDADE:
+                        possible = min(mun[mun_supply_col], ind["demanda_mensal_ton"]) * prob
                         if possible > 0.1:
                             match_details.append({
                                 "Município": mun["municipio"],
                                 "Indústria": ind["nome_empre"],
                                 "Distância (km)": round(dist_km, 1),
+                                "Probabilidade": round(prob, 3),
                                 "Volume Match (t/mês)": round(possible, 1),
                                 "Oferta Município (t/mês)": round(mun[mun_supply_col], 1),
                                 "Demanda Indústria (t/mês)": round(ind["demanda_mensal_ton"], 1)
@@ -585,11 +593,12 @@ with tab2:
         else:
             st.info("Selecione um tipo de resíduo na sidebar para ver matches.")
 
-    # Instrução para o usuário
+    # Instrução para o usuário (mantida)
     st.info(
         "💡 **Dica**: Use o seletor de 'Tipo de resíduo' na sidebar para alternar entre análise de lenhoso (para siderúrgicas) e agro seco (para cimenteiras). "
         "O mapa mostrará apenas onde há correspondência real de tipo E volume."
     )
+# ... [MANTENHA TUDO DO SEU app.py DESTA PONTO EM DIANTE (abas 3,4,5)] ...
 # =========================
 # TAB 3 – ONDE VALE A PENA
 # =========================
