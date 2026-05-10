@@ -11,7 +11,7 @@ import numpy as np
 # =========================
 
 st.set_page_config(
-    page_title="Do Fogo ao Lucro - PID 3.0",
+    page_title="Rota Biomassa",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -259,7 +259,7 @@ if df_filt.empty:
 # HEADER
 # =========================
 
-st.title("Do Fogo ao Lucro – Mapa de Oportunidades em MG")
+st.title("Rota Biomassa em MG")
 st.markdown("Veja **onde a biomassa hoje vira fumaça** e onde ela pode virar **dinheiro e energia limpa**.")
 
 st.markdown("""
@@ -500,6 +500,7 @@ with tab2:
             )
         else:
             st.info("Nenhum match viável encontrado para os filtros atuais.")
+            
 # =========================
 # TAB 3 – RADAR BIOMASSA ESTRATÉGICA
 # =========================
