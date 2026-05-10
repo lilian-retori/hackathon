@@ -255,7 +255,7 @@ with tab3:
         df_nat = (
             df_filt[df_filt["Lucro_Liquido_Estimado"] > 0][
                 ["municipio", "Polo_Destino", "Distancia_Km",
-                 "Lucro_Liquido_Estimado", "tipo_hub"]
+                "Lucro_Liquido_Estimado", "tipo_hub"]
             ]
             .sort_values(by="Lucro_Liquido_Estimado", ascending=False)
             .head(10)
@@ -278,7 +278,7 @@ with tab3:
         ]
         df_garg = df_garg[
             ["municipio", "Vres_Total_Ton", "Polo_Destino",
-             "Distancia_Km", "Lucro_Liquido_Estimado"]
+            "Distancia_Km", "Lucro_Liquido_Estimado"]
         ].sort_values(by="Lucro_Liquido_Estimado")
 
         df_garg = df_garg.rename(columns={
@@ -422,7 +422,7 @@ df = load_data()
 col_logo, col_title = st.columns([1, 3])
 with col_logo:
     if LOGO_PATH.exists():
-         st.sidebar.image(str(LOGO_PATH), use_container_width=True)
+        st.sidebar.image(str(LOGO_PATH), use_container_width=True)
 
 with col_title:
     st.title("Do Fogo ao Lucro")
@@ -612,7 +612,7 @@ with tab3:
         df_nat = (
             df_filt[df_filt["Lucro_Liquido_Estimado"] > 0][
                 ["municipio", "Polo_Destino", "Distancia_Km",
-                 "Lucro_Liquido_Estimado", "tipo_hub"]
+                "Lucro_Liquido_Estimado", "tipo_hub"]
             ]
             .sort_values(by="Lucro_Liquido_Estimado", ascending=False)
             .head(10)
@@ -635,7 +635,7 @@ with tab3:
         ]
         df_garg = df_garg[
             ["municipio", "Vres_Total_Ton", "Polo_Destino",
-             "Distancia_Km", "Lucro_Liquido_Estimado"]
+            "Distancia_Km", "Lucro_Liquido_Estimado"]
         ].sort_values(by="Lucro_Liquido_Estimado")
 
         df_garg = df_garg.rename(columns={
@@ -714,5 +714,5 @@ with tab5:
     col_a, col_b, col_c = st.columns(3)
     col_a.metric("Biomassa (t)", f"{df_mun['Vres_Total_Ton']:,.0f}".replace(",", "."))
     col_b.metric("Dinheiro queimado hoje (R$)", f"{df_mun['Riqueza_Perdida_RS']:,.0f}".replace(",", "."))
->>>>>>> f4cbdb7 (Primeiro commit do app PID)
+    #f4cbdb7 (Primeiro commit do app PID)
     col_c.metric("Lucro estimado (R$)", f"{df_mun['Lucro_Liquido_Estimado']:,.0f}".replace(",", "."))
