@@ -1,11 +1,11 @@
-﻿municipio,ano,Vres_Total_Ton,Riqueza_Perdida_RS,Polo_Destino,Distancia_Km,Custo_Frete_RS,Lucro_Liquido_Estimado,classe_vres,classe_lucro,tipo_hub
-Diamantina,2022,300000.0,135000000.0,Sete Lagoas (Siderurgia),150.95,81511848.61,53488151.39,Baixo Vres,Lucro positivo,Oportunidade nicho
-Governador Valadares,2022,250000.0,112500000.0,Ipatinga (Vale do Aço),91.71,41271036.04,71228963.96000001,Baixo Vres,Lucro positivo,Oportunidade nicho
-Itabira,2022,500000.0,225000000.0,João Monlevade (Siderurgia),21.95,19758182.78,205241817.22,Alto Vres,Lucro positivo,Hub natural
-João Pinheiro,2022,400000.0,180000000.0,Sete Lagoas (Siderurgia),278.8,200739564.73,-20739564.72999999,Baixo Vres,Lucro negativo,Baixa prioridade
-Montes Claros,2022,200000.0,90000000.0,Sete Lagoas (Siderurgia),304.83,109737208.4,-19737208.400000006,Baixo Vres,Lucro negativo,Baixa prioridade
-Paracatu,2022,1050000.0,472500000.0,Uberaba (Biocombustíveis),300.55,568044132.76,-95544132.75999999,Alto Vres,Lucro negativo,Hub travado
-Patos de Minas,2022,450000.0,202500000.0,Uberaba (Biocombustíveis),196.18,158903177.83,43596822.16999999,Alto Vres,Lucro positivo,Hub natural
-Perdizes,2022,420000.0,189000000.0,Uberaba (Biocombustíveis),79.84,60361281.87,128638718.13,Baixo Vres,Lucro positivo,Oportunidade nicho
-Uberaba,2022,960000.0,432000000.0,Uberaba (Biocombustíveis),0.0,0.0,432000000.0,Alto Vres,Lucro positivo,Hub natural
-Unaí,2022,1350000.0,607500000.0,Uberaba (Biocombustíveis),390.73,949474684.15,-341974684.15,Alto Vres,Lucro negativo,Hub travado
+﻿municipio,vres_florestal,ano,vres_agr,vres_lenhoso,vres_agro_seco,vres_agro_umido,Vres_Lenhoso_Mensal,Vres_Agro_Seco_Mensal,Vres_Agro_Umido_Mensal,Vres_Total_Ton,Riqueza_Perdida_RS,Polo_Destino,Distancia_Km,Probabilidade_Atratividade,Custo_Frete_RS,Lucro_Liquido_Estimado,Status_Logistico,classe_vres,classe_lucro,tipo_hub
+Diamantina,300000.0,2022,0.0,300000.0,0.0,0.0,25000.0,0.0,0.0,300000.0,135000000.0,Sete Lagoas (Siderurgia),150.95,0.9926,81511848.61,53094832.12,Altamente atrativo,Baixo Vres,Lucro positivo,Oportunidade nicho
+Governador Valadares,250000.0,2022,0.0,250000.0,0.0,0.0,20833.333333333332,0.0,0.0,250000.0,112500000.0,Ipatinga (Vale do Aço),91.71,1.0,41271036.04,71227552.0,Altamente atrativo,Baixo Vres,Lucro positivo,Oportunidade nicho
+Itabira,500000.0,2022,0.0,500000.0,0.0,0.0,41666.666666666664,0.0,0.0,500000.0,225000000.0,João Monlevade (Siderurgia),21.95,1.0,19758182.78,205241813.42,Altamente atrativo,Alto Vres,Lucro positivo,Hub natural
+João Pinheiro,400000.0,2022,0.0,400000.0,0.0,0.0,33333.333333333336,0.0,0.0,400000.0,180000000.0,Sete Lagoas (Cimenteira),278.64,0.0004,200622592.9,-7920.94,Baixa atratividade,Baixo Vres,Lucro negativo,Baixa prioridade
+Montes Claros,200000.0,2022,0.0,200000.0,0.0,0.0,16666.666666666668,0.0,0.0,200000.0,90000000.0,Sete Lagoas (Siderurgia),304.83,0.0,109737208.4,-553.04,Baixa atratividade,Baixo Vres,Lucro negativo,Baixa prioridade
+Paracatu,100000.0,2022,950000.0,100000.0,665000.0,285000.0,8333.333333333334,55416.666666666664,23750.0,1050000.0,472500000.0,Uberaba (Biocombustíveis),300.55,0.0,568044132.76,-4104.38,Baixa atratividade,Alto Vres,Lucro negativo,Hub travado
+Patos de Minas,0.0,2022,450000.0,0.0,315000.0,135000.0,0.0,26250.0,11250.0,450000.0,202500000.0,Uberaba (Biocombustíveis),196.18,0.5944,158903177.83,25915408.74,Moderadamente atrativo,Alto Vres,Lucro positivo,Hub natural
+Perdizes,0.0,2022,420000.0,0.0,294000.0,126000.0,0.0,24500.0,10500.0,420000.0,189000000.0,Uberaba (Biocombustíveis),79.84,1.0,60361281.87,128637940.07,Altamente atrativo,Baixo Vres,Lucro positivo,Oportunidade nicho
+Uberaba,80000.0,2022,880000.0,80000.0,616000.0,264000.0,6666.666666666667,51333.333333333336,22000.0,960000.0,432000000.0,Uberaba (Biocombustíveis),0.0,1.0,0.0,431999999.11,Altamente atrativo,Alto Vres,Lucro positivo,Hub natural
+Unaí,150000.0,2022,1200000.0,150000.0,840000.0,360000.0,12500.0,70000.0,30000.0,1350000.0,607500000.0,Uberaba (Biocombustíveis),390.73,0.0,949474684.15,-1.78,Baixa atratividade,Alto Vres,Lucro negativo,Hub travado

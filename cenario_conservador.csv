@@ -1,0 +1,11 @@
+﻿municipio,codigo_ibge,vres_florestal,ano,vres_agr,Vres_Total_Ton,Riqueza_Potencial_RS,Polo_Destino,Distancia_Km,Dentro_Raio_Hipotetico,Custo_Frete_RS,Lucro_Liquido_Estimado,Status_Logistico,classe_vres,classe_lucro,tipo_hub
+Diamantina,0.0,300000.0,2022,0.0,300000.0,135000000.0,Sete Lagoas (Siderurgia),150.95,False,81511848.61,35373000.0,Fora do raio hipotético,Baixo Vres,Lucro positivo,Oportunidade nicho
+Governador Valadares,0.0,250000.0,2022,0.0,250000.0,112500000.0,Ipatinga (Vale do Aço),91.71,True,41271036.04,62059500.0,Atrativo,Baixo Vres,Lucro positivo,Oportunidade nicho
+Itabira,0.0,500000.0,2022,0.0,500000.0,225000000.0,João Monlevade (Siderurgia),21.95,True,19758182.78,200855000.0,Atrativo,Alto Vres,Lucro positivo,Hub natural
+João Pinheiro,0.0,400000.0,2022,0.0,400000.0,180000000.0,Sete Lagoas (Cimenteira),278.64,False,200622592.9,-65203200.0,Fora do raio hipotético,Baixo Vres,Lucro negativo,Baixa prioridade
+Montes Claros,0.0,200000.0,2022,0.0,200000.0,90000000.0,Sete Lagoas (Siderurgia),304.83,False,109737208.4,-44125200.0,Fora do raio hipotético,Baixo Vres,Lucro negativo,Baixa prioridade
+Paracatu,0.0,100000.0,2022,950000.0,1050000.0,472500000.0,Uberaba (Biocombustíveis),300.55,False,568044132.76,-221770500.0,Fora do raio hipotético,Alto Vres,Lucro negativo,Hub travado
+Patos de Minas,,0.0,2022,450000.0,450000.0,202500000.0,Uberaba (Biocombustíveis),196.18,False,158903177.83,8281800.0,Fora do raio hipotético,Alto Vres,Lucro positivo,Hub natural
+Perdizes,,0.0,2022,420000.0,420000.0,189000000.0,Uberaba (Biocombustíveis),79.84,True,60361281.87,115227840.0,Atrativo,Baixo Vres,Lucro positivo,Oportunidade nicho
+Uberaba,0.0,80000.0,2022,880000.0,960000.0,432000000.0,Uberaba (Biocombustíveis),0.0,True,0.0,432000000.0,Atrativo,Alto Vres,Lucro positivo,Hub natural
+Unaí,0.0,150000.0,2022,1200000.0,1350000.0,607500000.0,Uberaba (Biocombustíveis),390.73,False,949474684.15,-552968100.0,Fora do raio hipotético,Alto Vres,Lucro negativo,Hub travado
