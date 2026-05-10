@@ -287,6 +287,12 @@ st.session_state["residue_type_selector"] = residue_type_sel
 df_filt = df[df["ano"] == ano_sel].copy()
 if tipo_hub_sel != "Todos":
     df_filt = df_filt[df_filt["tipo_hub"] == tipo_hub_sel]
+# Índice de Radar Biomassa = Vres_Total_Ton * Probabilidade_Atratividade
+if "Probabilidade_Atratividade" in df_filt.columns:
+    df_filt["Radar_Biomassa"] = df_filt["Vres_Total_Ton"] * df_filt["Probabilidade_Atratividade"].fillna(0)
+else:
+    # fallback: se o CSV ainda não tiver probabilidade, assume 1 (não ideal, mas não quebra o app)
+    df_filt["Radar_Biomassa"] = df_filt["Vres_Total_Ton"]
 
 if df_filt.empty:
     st.warning("Nenhum município encontrado com os filtros atuais.")
@@ -339,7 +345,7 @@ with tab1:
 
     col1.metric("Biomassa total (t)", fmt_num(total_vres))
     col2.metric("Dinheiro queimado", fmt_mi(total_riqueza))
-    col3.metric("Lucro estimado", fmt_mi(total_lucro))
+    col3.metric("Radar Biomassa total (t ponderadas)", fmt_num(df_filt["Radar_Biomassa"].sum()))
     col4.metric("Lugares bons", hubs_nat)
 
     st.markdown("#### Top 10 lugares com mais dinheiro sendo queimado hoje")
@@ -507,20 +513,22 @@ with tab2:
     
     # ===== CONFIGURAR LAYOUT FINAL =====
     fig_map.update_layout(
-        mapbox_style="open-street-map",
-        paper_bgcolor="#03254D",
-        plot_bgcolor="#03254D",
-        font=dict(color="white"),
-        legend=dict(
-            bgcolor="rgba(0,0,0,0)",
-            bordercolor="rgba(255,255,255,0.2)",
-            yanchor="top",
-            y=0.99,
-            xanchor="left",
-            x=0.01
-        ),
-        margin=dict(l=10, r=10, t=60, b=10),
-        title=f"Match Real: Oferta Municipal × Demanda Industrial ({selected_type})"
+    mapbox_style="open-street-map",
+    paper_bgcolor="#03254D",
+    plot_bgcolor="#03254D",
+    font=dict(color="white"),
+    title_font=dict(color="white", size=18),
+    legend=dict(
+        bgcolor="rgba(0,0,0,0)",
+        bordercolor="rgba(255,255,255,0.2)",
+        yanchor="top",
+        y=0.99,
+        xanchor="left",
+        x=0.01,
+        font=dict(color="white")
+    ),
+    margin=dict(l=10, r=10, t=60, b=10),
+    title=f"Mapa de Oportunidades: Radar Biomassa ({selected_type})"
     )
     
     st.plotly_chart(fig_map, use_container_width=True)
@@ -598,21 +606,20 @@ with tab2:
         "💡 **Dica**: Use o seletor de 'Tipo de resíduo' na sidebar para alternar entre análise de lenhoso (para siderúrgicas) e agro seco (para cimenteiras). "
         "O mapa mostrará apenas onde há correspondência real de tipo E volume."
     )
-# ... [MANTENHA TUDO DO SEU app.py DESTA PONTO EM DIANTE (abas 3,4,5)] ...
 # =========================
-# TAB 3 – ONDE VALE A PENA
+# TAB 3 – RADAR BIOMASSA (ANTES: ONDE VALE A PENA)
 # =========================
 
 with tab3:
-    st.subheader("Onde o frete deixa o negócio bom ou ruim")
+    st.subheader("Radar Biomassa – onde faz mais sentido atuar")
 
     st.markdown(
         """
 Cada bolinha é um município:
 
-- Eixo **X**: distância até a indústria.  
-- Eixo **Y**: lucro estimado com biomassa.  
-- Quanto **maior a bolinha**, mais biomassa existe ali.
+- Eixo **X**: distância até a indústria (km).  
+- Eixo **Y**: **Índice Radar Biomassa** = biomassa disponível × atratividade logística.  
+- Quanto **maior a bolinha**, mais biomassa bruta existe ali.
 """
     )
 
@@ -623,67 +630,72 @@ Cada bolinha é um município:
         "Baixa prioridade": "#BECCCC",
     }
 
-    fig_lucro = px.scatter(
+    fig_radar = px.scatter(
         df_filt,
         x="Distancia_Km",
-        y="Lucro_Liquido_Estimado",
+        y="Radar_Biomassa",
         size="Vres_Total_Ton",
         color="tipo_hub",
         color_discrete_map=color_map,
         hover_name="municipio",
         labels={
             "Distancia_Km": "Distância até a indústria (km)",
-            "Lucro_Liquido_Estimado": "Lucro estimado (R$)",
+            "Radar_Biomassa": "Índice Radar Biomassa (t ponderadas)",
             "tipo_hub": "Tipo de lugar"
         },
-        title="Distância x Lucro: quem ganha dinheiro e quem fica no prejuízo"
+        title="Distância x Radar Biomassa: onde a biomassa 'puxa' mais forte"
     )
 
-    fig_lucro.update_layout(
+    fig_radar.update_layout(
         paper_bgcolor="#03254D",
         plot_bgcolor="#08366A",
         font=dict(color="white"),
-        legend=dict(bgcolor="rgba(0,0,0,0)")
+        title_font=dict(color="white", size=18),
+        xaxis=dict(title_font=dict(color="white"), tickfont=dict(color="white")),
+        yaxis=dict(title_font=dict(color="white"), tickfont=dict(color="white")),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="white")
+        )
     )
 
-    st.plotly_chart(fig_lucro, use_container_width=True)
+    st.plotly_chart(fig_radar, use_container_width=True)
 
     col_pos, col_neg = st.columns(2)
 
     with col_pos:
-        st.markdown("#### Top 10 lugares que já dão lucro")
-        df_nat = (
-            df_filt[df_filt["Lucro_Liquido_Estimado"] > 0][
-                ["municipio", "Polo_Destino", "Distancia_Km", "Lucro_Liquido_Estimado", "tipo_hub"]
-            ]
-            .sort_values(by="Lucro_Liquido_Estimado", ascending=False)
+        st.markdown("#### Top 10 lugares com maior Radar Biomassa")
+        df_top_radar = (
+            df_filt[["municipio", "Radar_Biomassa", "Vres_Total_Ton", "tipo_hub", "Polo_Destino", "Distancia_Km"]]
+            .sort_values(by="Radar_Biomassa", ascending=False)
             .head(10)
             .rename(columns={
                 "municipio": "Município",
-                "Polo_Destino": "Indústria mais próxima",
-                "Distancia_Km": "Distância (km)",
-                "Lucro_Liquido_Estimado": "Lucro (R$)",
+                "Radar_Biomassa": "Radar Biomassa (t ponderadas)",
+                "Vres_Total_Ton": "Biomassa total (t)",
                 "tipo_hub": "Tipo de lugar",
+                "Polo_Destino": "Indústria mais próxima",
+                "Distancia_Km": "Distância (km)"
             })
         )
-        st.dataframe(df_nat, use_container_width=True)
+        st.dataframe(df_top_radar, use_container_width=True)
 
     with col_neg:
-        st.markdown("#### Lugares com muita biomassa, mas prejuízo")
+        st.markdown("#### Lugares com muita biomassa, mas Radar baixo")
         vres_mediana = df_filt["Vres_Total_Ton"].median()
         df_garg = df_filt[
             (df_filt["Vres_Total_Ton"] >= vres_mediana) &
-            (df_filt["Lucro_Liquido_Estimado"] < 0)
+            (df_filt["Radar_Biomassa"] < df_filt["Radar_Biomassa"].median())
         ][
-            ["municipio", "Vres_Total_Ton", "Polo_Destino", "Distancia_Km", "Lucro_Liquido_Estimado"]
-        ].sort_values(by="Lucro_Liquido_Estimado")
+            ["municipio", "Vres_Total_Ton", "Radar_Biomassa", "Polo_Destino", "Distancia_Km"]
+        ].sort_values(by="Radar_Biomassa")
 
         df_garg = df_garg.rename(columns={
             "municipio": "Município",
             "Vres_Total_Ton": "Biomassa (t)",
+            "Radar_Biomassa": "Radar Biomassa (t ponderadas)",
             "Polo_Destino": "Indústria mais próxima",
             "Distancia_Km": "Distância (km)",
-            "Lucro_Liquido_Estimado": "Lucro (R$)",
         })
 
         st.dataframe(df_garg, use_container_width=True)
