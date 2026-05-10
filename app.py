@@ -360,21 +360,6 @@ with tab1:
 # TAB 2 – MAPA (COM MATCH REAL INDUSTRIA-MUNICÍPIO)
 # =========================
 with tab2:
-    # --- AVISO METODOLÓGICO ATUALIZADO ---
-    st.warning(
-        """
-        ⚠️ **Avisinho importante (atualizado)**:  
-        Este mapa mostra **match real entre oferta municipal e demanda industrial** por tipo de resíduo e volume mensal.  
-        Baseia-se em:  
-        - Dados industriais reais que você forneceu (localização e consumo anual de 17 cimenteiras e 16 siderúrgicas)  
-        - Separação técnica do resíduo municipal por tipo (lenhoso para siderurgia, agro seco para cimento)  
-        - Suposições de fração coletável (70% do resíduo agrícola é palha seca utilizável)  
-        - Distância máxima de transporte por tipo de indústria (siderurgia: 250 km, cimento: 150 km)  
-        **Volume mostrado = toneladas/mês que poderiam ser realmente trocadas** (não potencial teórico).  
-        Fonte: Sua planilha inicial + IBGE PEVS/PAM 2022 (com fallbacks manuais onde API falhou).
-        """
-    )
-    # --- FIM DO AVISO ---
 
     st.subheader("Mapa de Oportunidades: Match Indústria - Resíduo")
 
