@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from pathlib import Path
 
 LOGO_PATH = Path("Logo.jpg")  # nome do arquivo da logo
