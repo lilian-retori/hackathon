@@ -2,6 +2,61 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import base64
+
+# =========================
+# FUNÇÃO PARA PREPARAR DADOS INDUSTRIAIS (ADICIONE AQUI)
+# =========================
+def preparar_dados_industriais():
+    """
+    Converte os dados industriais da sua mensagem inicial em DataFrame
+    com: nome_empre, cidade, industria, consumo_ton_ano, lat, lon, tipo_residuo_exigido, demanda_mensal_ton
+    """
+    import pandas as pd  # Garante que o pandas esteja disponível aqui
+    
+    # DADOS DE CIMENTO (da sua primeira tabela)
+    cement_data = [
+        ["EMPRESA DE CIMENTOS LIZ S.A", "VESPASIANO", "Cimento", 131888.63, -43.92484785, -19.68546445],
+        ["INTERCEMENT BRASIL S.A.", "IJACI", "Cimento", 125965.52, -44.94068823, -21.19281404],
+        ["CSN CIMENTOS BRASIL S.A.", "PEDRO LEOPOLDO", "Cimento", 104328.31, -44.05710332, -19.60800416],
+        ["VOTORANTIM CIMENTOS S.A.", "ITAÚ DE MINAS", "Cimento", 89713.37, -46.76315471, -20.76110507],
+        ["COMPANHIA NACIONAL DE CIMENTO - CNC", "SETE LAGOAS", "Cimento", 85021.06, -44.27433569, -19.51343785],
+        ["CSN CIMENTOS BRASIL S.A.", "BARROSO", "Cimento", 130862.98, -43.9860617, -21.1816831],
+        ["CSN CIMENTOS S.A.", "ARCOS", "Cimento", 70417.63, -45.57895294, -20.31299859],
+        ["CSN CIMENTOS BRASIL S.A.", "MONTES CLOROS", "Cimento", 50986.93, -43.89133274, -16.67246921],
+        ["INTERCEMENT BRASIL S.A.", "SANTANA DO PARAÍSO", "Cimento", 12894.91, -42.47959725, -19.47643347],
+        ["CSN CIMENTOS BRASIL S.A.", "BARBACENA", "Cimento", 709.22, -43.7684493, -21.21278304],
+        ["INTERCEMENT BRASIL S.A.", "PEDRO LEOPOLDO", "Cimento", 664.33, -44.0278412, -19.62747641]
+    ]
+    
+    # DADOS DE SIDERURGIA (da sua segunda tabela)
+    steel_data = [
+        ["USINAS SIDERURGICAS DE MINAS GERAIS S/A. USIMINAS", "IPATINGA", "Siderurgia", 858601.8833, -42.55697038, -19.49367598],
+        ["GERDAU ACOMINAS S/A", "OURO BRANCO", "Siderurgia", 533871.0147, -43.74237377, -20.54547116],
+        ["APERAM INOX AMERICA DO SUL S.A.", "TIMÓTEO", "Siderurgia", 403131.6518, -42.64340843, -19.53140653],
+        ["VALLOUREC SOLUCOES TUBULARES DO BRASIL S.A.", "JECEABA", "Siderurgia", 331233.6585, -43.97277466, -20.57795847],
+        ["ARCELORMITTAL BRASIL S.A.", "JUIZ DE FORA", "Siderurgia", 310532.6138, -43.46263449, -21.62762464],
+        ["ARCELORMITTAL BRASIL S.A.", "JOÃO MONLEVADE", "Siderurgia", 309656.3824, -43.13013906, -19.83023777],
+        ["GERDAU ACOS LONGOS S.A.", "DIVINÓPOLIS", "Siderurgia", 87530.5166, -44.87941954, -20.15452264],
+        ["VALLOUREC SOLUCOES TUBULARES DO BRASIL S.A.", "BELO HORIZONTE", "Siderurgia", 78070.51652, -44.01149263, -19.97010911],
+        ["GERDAU ACOS LONGOS S.A.", "BARÃO DE COCAIS", "Siderurgia", 31655.35598, -43.47902631, -19.93711487]
+    ]
+    
+    # Combine e crie DataFrame
+    all_data = cement_data + steel_data
+    cols = ["nome_empre", "cidade", "industria", "consumo_ton_ano", "lat", "lon"]
+    df_industrias = pd.DataFrame(all_data, columns=cols)
+    
+    # Mapeia tipo de indústria para tipo de resíduo exigido (suposições técnicas razoáveis)
+    df_industrias["tipo_residuo_exigido"] = df_industrias["industria"].map({
+        "Cimento": "Agro_Seco",      # Casca de arroz, casca de café - seco, baixo teor de cinzas
+        "Siderurgia": "Lenhoso"      # Lenha de eucalipto/pinus para carvão vegetal
+    })
+    
+    # Converte consumo anual para mensal (para facilitar comparação com oferta municipal)
+    df_industrias["demanda_mensal_ton"] = df_industrias["consumo_ton_ano"] / 12
+    
+    return df_industrias
 
 # =========================
 # CONFIG BÁSICA
@@ -219,6 +274,15 @@ ano_sel = st.sidebar.selectbox("Ano", anos, index=len(anos) - 1)
 
 tipos_hub = ["Todos"] + sorted(df["tipo_hub"].dropna().unique())
 tipo_hub_sel = st.sidebar.selectbox("Tipo de lugar", tipos_hub)
+# Seletor de tipo de resíduo para o mapa de match
+residue_type_options = ["Lenhoso", "Agro_Seco", "Agro_Umido"]
+residue_type_sel = st.sidebar.selectbox(
+"Tipo de resíduo para análise",
+residue_type_options,
+index=0, # Padrão: Lenhoso
+help="Lenhoso = para siderúrgicas | Agro_Seco = para cimenteiras"
+)
+st.session_state["residue_type_selector"] = residue_type_sel
 
 df_filt = df[df["ano"] == ano_sel].copy()
 if tipo_hub_sel != "Todos":
@@ -318,14 +382,17 @@ with tab2:
     # 1. Carregar dados municipais (seu df_filt já tem Vres_*_Mensal)
     df_mun = df_filt.copy()
     
-    # 2. Preparar dados industriais (do código da Etapa 1)
+    # 2. Preparar dados industriais (da função que adicionamos acima)
     df_ind = preparar_dados_industriais()
     
-    # 3. Selecionar tipo de resíduo para análise (sidebar já tem isso - vamos usar)
-    selected_type = st.session_state.get("residue_type_selector", "Lenhoso")  # Pega do sidebar
+    # 3. Selecionar tipo de resíduo para análise (do session_state definido na sidebar)
+    selected_type = st.session_state.get("residue_type_selector", "Lenhoso")
     
     # 4. Filtrar municípios com oferta >0 do tipo selecionado
     mun_supply_col = f"Vres_{selected_type}_Mensal"
+    # Verifica se a coluna existe; se não, cria com zeros (fallback seguro)
+    if mun_supply_col not in df_mun.columns:
+        df_mun[mun_supply_col] = 0.0
     df_mun_supply = df_mun[df_mun[mun_supply_col] > 0].copy()
     
     # 5. Filtrar indústrias com demanda >0 do tipo selecionado
