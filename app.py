@@ -25,12 +25,6 @@ possible_logos = [
 
 LOGO_PATH = next((p for p in possible_logos if p.exists()), None)
 
-if LOGO_PATH:
-    st.logo(str(LOGO_PATH), size="large")
-    st.sidebar.image(str(LOGO_PATH), width=220)
-else:
-    st.warning("Logo não encontrada. Verifique nome, extensão e pasta do arquivo.")
-
 # =========================
 # ESTILO CUSTOMIZADO
 # =========================
@@ -52,8 +46,7 @@ section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3,
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] li,
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] div {
+section[data-testid="stSidebar"] label {
     color: #FFFFFF !important;
     background: transparent !important;
 }
@@ -71,24 +64,30 @@ div[data-testid="stTable"] {
     padding: 0.5rem;
 }
 
+/* Destaque visual extra para o 3º card (Lucro estimado) */
+div[data-testid="column"]:nth-of-type(3) div[data-testid="stMetric"] {
+    background: linear-gradient(135deg, #1FAF8B 0%, #17856A 100%);
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
 button[data-baseweb="tab"] {
     color: #FFFFFF !important;
 }
 
 button[data-baseweb="tab"][aria-selected="true"] {
-    border-bottom: 3px solid #F5F749 !important;
-    color: #F5F749 !important;
+    border-bottom: 3px solid #1FAF8B !important;
+    color: #1FAF8B !important;
 }
 
 .stButton > button {
-    background-color: #550C18;
+    background-color: #1FAF8B;
     color: #FFFFFF;
     border-radius: 8px;
     border: none;
 }
 
 .stButton > button:hover {
-    background-color: #6E1220;
+    background-color: #17856A;
     color: #FFFFFF;
 }
 
@@ -119,8 +118,35 @@ ul[role="listbox"] li:hover {
     background-color: #EAF0F6 !important;
     color: #03254D !important;
 }
+
+/* Expander da sidebar */
+div[data-testid="stExpander"] details {
+    background-color: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid rgba(255,255,255,0.08);
+}
 </style>
 """, unsafe_allow_html=True)
+
+# =========================
+# FUNÇÕES AUXILIARES
+# =========================
+
+def fmt_num(valor):
+    return f"{valor:,.0f}".replace(",", ".")
+
+def fmt_mi(valor):
+    if abs(valor) >= 1_000_000:
+        return f"R$ {valor/1_000_000:.1f} Mi".replace(".", ",")
+    return f"R$ {valor:,.0f}".replace(",", ".")
+
+def classifica_distancia(km):
+    if km <= 80:
+        return "Perto"
+    elif km <= 150:
+        return "Médio"
+    return "Longe"
 
 # =========================
 # COORDENADAS
@@ -169,6 +195,40 @@ def load_data():
 df = load_data()
 
 # =========================
+# SIDEBAR
+# =========================
+
+st.sidebar.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+
+if LOGO_PATH:
+    st.sidebar.image(str(LOGO_PATH), width=220)
+else:
+    st.sidebar.warning("Logo não encontrada.")
+
+st.sidebar.markdown("## Filtros")
+
+with st.sidebar.expander("Como usar", expanded=False):
+    st.markdown("""
+1. Escolha o ano.  
+2. Escolha o tipo de lugar.  
+3. Veja o mapa, os gráficos e simule o frete.
+""")
+
+anos = sorted(df["ano"].dropna().unique())
+ano_sel = st.sidebar.selectbox("Ano", anos, index=len(anos) - 1)
+
+tipos_hub = ["Todos"] + sorted(df["tipo_hub"].dropna().unique())
+tipo_hub_sel = st.sidebar.selectbox("Tipo de lugar", tipos_hub)
+
+df_filt = df[df["ano"] == ano_sel].copy()
+if tipo_hub_sel != "Todos":
+    df_filt = df_filt[df_filt["tipo_hub"] == tipo_hub_sel]
+
+if df_filt.empty:
+    st.warning("Nenhum município encontrado com os filtros atuais.")
+    st.stop()
+
+# =========================
 # HEADER
 # =========================
 
@@ -186,34 +246,6 @@ Cada bolinha no mapa é um município de Minas Gerais.
 - **Lucro** = quando vale a pena levar esse resíduo até a indústria.
 """
 )
-
-# =========================
-# SIDEBAR
-# =========================
-
-st.sidebar.markdown("## Filtros")
-with st.sidebar.expander("Como usar", expanded=True):
-    st.markdown(
-        """
-1. Escolha o ano.  
-2. Escolha o tipo de lugar.  
-3. Veja o mapa, os gráficos e simule o frete.
-"""
-    )
-
-anos = sorted(df["ano"].dropna().unique())
-ano_sel = st.sidebar.selectbox("Ano", anos, index=len(anos) - 1)
-
-tipos_hub = ["Todos"] + sorted(df["tipo_hub"].dropna().unique())
-tipo_hub_sel = st.sidebar.selectbox("Tipo de lugar", tipos_hub)
-
-df_filt = df[df["ano"] == ano_sel].copy()
-if tipo_hub_sel != "Todos":
-    df_filt = df_filt[df_filt["tipo_hub"] == tipo_hub_sel]
-
-if df_filt.empty:
-    st.warning("Nenhum município encontrado com os filtros atuais.")
-    st.stop()
 
 # =========================
 # TABS
@@ -238,13 +270,13 @@ with tab1:
 
     total_vres = df_filt["Vres_Total_Ton"].sum()
     total_riqueza = df_filt["Riqueza_Perdida_RS"].sum()
+    total_lucro = df_filt["Lucro_Liquido_Estimado"].sum()
     hubs_nat = (df_filt["tipo_hub"] == "Hub natural").sum()
-    hubs_trav = (df_filt["tipo_hub"] == "Hub travado").sum()
 
-    col1.metric("Biomassa total (t)", f"{total_vres:,.0f}".replace(",", "."))
-    col2.metric("Dinheiro hoje queimado (R$)", f"{total_riqueza:,.0f}".replace(",", "."))
-    col3.metric("Lugares bons", hubs_nat)
-    col4.metric("Lugares travados", hubs_trav)
+    col1.metric("Biomassa total (t)", fmt_num(total_vres))
+    col2.metric("Dinheiro queimado", fmt_mi(total_riqueza))
+    col3.metric("Lucro estimado", fmt_mi(total_lucro))
+    col4.metric("Lugares bons", hubs_nat)
 
     st.markdown("#### Top 10 lugares com mais dinheiro sendo queimado hoje")
     df_resumo = (
@@ -269,7 +301,7 @@ with tab2:
 
     st.markdown(
         """
-- **Amarelo** = lugar bom para ganhar dinheiro com biomassa.  
+- **Verde** = lugar bom para ganhar dinheiro com biomassa.  
 - **Vermelho** = muito resíduo, mas o frete deixa o lugar travado.  
 - **Azul** = oportunidades menores / nicho.  
 - **Cinza** = baixa prioridade.
@@ -282,7 +314,7 @@ with tab2:
         st.info("Ainda não há coordenadas cadastradas para os municípios filtrados.")
     else:
         color_map = {
-            "Hub natural": "#F5F749",
+            "Hub natural": "#1FAF8B",
             "Hub travado": "#FA441A",
             "Oportunidade nicho": "#4DA8FF",
             "Baixa prioridade": "#BECCCC",
@@ -323,7 +355,7 @@ with tab2:
         st.plotly_chart(fig_map, use_container_width=True)
 
 # =========================
-# TAB 3 – LUCRO X DISTÂNCIA
+# TAB 3 – ONDE VALE A PENA
 # =========================
 
 with tab3:
@@ -340,7 +372,7 @@ Cada bolinha é um município:
     )
 
     color_map = {
-        "Hub natural": "#F5F749",
+        "Hub natural": "#1FAF8B",
         "Hub travado": "#FA441A",
         "Oportunidade nicho": "#4DA8FF",
         "Baixa prioridade": "#BECCCC",
@@ -412,7 +444,7 @@ Cada bolinha é um município:
         st.dataframe(df_garg, use_container_width=True)
 
 # =========================
-# TAB 4 – CENÁRIO DE FRETE
+# TAB 4 – E SE O FRETE MUDAR?
 # =========================
 
 with tab4:
@@ -470,11 +502,22 @@ with tab5:
     mun_sel = st.selectbox("Escolha um município", sorted(df_filt["municipio"].unique()))
     df_mun = df_filt[df_filt["municipio"] == mun_sel].iloc[0]
 
-    st.markdown(f"### {mun_sel}")
-    st.write(f"Tipo de lugar: **{df_mun['tipo_hub']}**")
-    st.write(f"Indústria mais próxima: **{df_mun['Polo_Destino']}** ({df_mun['Distancia_Km']:.1f} km)")
+    st.markdown(f"""
+    <div style="
+        background-color:#08366A;
+        padding:18px;
+        border-radius:12px;
+        margin-bottom:16px;
+        border:1px solid rgba(255,255,255,0.08);
+    ">
+        <h3 style="margin:0; color:white;">{mun_sel}</h3>
+        <p style="margin:8px 0 0 0; color:white;"><b>Tipo de lugar:</b> {df_mun['tipo_hub']}</p>
+        <p style="margin:4px 0 0 0; color:white;"><b>Indústria mais próxima:</b> {df_mun['Polo_Destino']} ({df_mun['Distancia_Km']:.1f} km)</p>
+        <p style="margin:4px 0 0 0; color:white;"><b>Classificação logística:</b> {classifica_distancia(df_mun['Distancia_Km'])}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     col_a, col_b, col_c = st.columns(3)
-    col_a.metric("Biomassa (t)", f"{df_mun['Vres_Total_Ton']:,.0f}".replace(",", "."))
-    col_b.metric("Dinheiro queimado hoje (R$)", f"{df_mun['Riqueza_Perdida_RS']:,.0f}".replace(",", "."))
-    col_c.metric("Lucro estimado (R$)", f"{df_mun['Lucro_Liquido_Estimado']:,.0f}".replace(",", "."))
+    col_a.metric("Biomassa (t)", fmt_num(df_mun["Vres_Total_Ton"]))
+    col_b.metric("Dinheiro queimado hoje", fmt_mi(df_mun["Riqueza_Perdida_RS"]))
+    col_c.metric("Lucro estimado", fmt_mi(df_mun["Lucro_Liquido_Estimado"]))
