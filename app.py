@@ -314,7 +314,7 @@ with tab1:
     st.dataframe(df_resumo, use_container_width=True)
 
 # =========================
-# TAB 2
+# TAB 2 – MAPA DE RADAR BIOMASSA
 # =========================
 
 with tab2:
@@ -322,53 +322,33 @@ with tab2:
 
     df_mun = df_filt.copy()
     selected_type = st.session_state.get("residue_type_selector", "Lenhoso")
+
     mun_supply_col = f"Vres_{selected_type}_Mensal"
     if mun_supply_col not in df_mun.columns:
         df_mun[mun_supply_col] = 0.0
-    df_mun_supply = df_mun[df_mun[mun_supply_col] > 0].copy()
 
-    df_ind = df_industrias[df_industrias["tipo_residuo_exigido"] == selected_type].copy()
-    df_ind_demand = df_ind[df_ind["demanda_mensal_ton"] > 0].copy()
+    df_mun_supply = df_mun[
+        (df_mun[mun_supply_col] > 0) &
+        (df_mun["lat"].notna()) &
+        (df_mun["lon"].notna())
+    ].copy()
+
+    df_ind_demand = df_industrias[
+        (df_industrias["tipo_residuo_exigido"] == selected_type) &
+        (df_industrias["demanda_mensal_ton"] > 0) &
+        (df_industrias["lat"].notna()) &
+        (df_industrias["lon"].notna())
+    ].copy()
 
     fig_map = go.Figure()
 
-    if not df_mun_supply.empty:
-        fig_map.add_trace(go.Scattermapbox(
-            lat=df_mun_supply["lat"],
-            lon=df_mun_supply["lon"],
-            mode="markers",
-            marker=dict(
-                size=(df_mun_supply[mun_supply_col] / 200).clip(lower=6),
-                color="#F5F749",
-                opacity=0.85
-            ),
-            text=df_mun_supply["municipio"],
-            hovertemplate="<b>%{text}</b><br>" + f"{selected_type} disponível: %{marker.size:.0f} t/mês<extra></extra>",
-            name="Oferta Municipal"
-        ))
-
-    if not df_ind_demand.empty:
-        fig_map.add_trace(go.Scattermapbox(
-            lat=df_ind_demand["lat"],
-            lon=df_ind_demand["lon"],
-            mode="markers",
-            marker=dict(
-                size=(df_ind_demand["demanda_mensal_ton"] / 150).clip(lower=7),
-                color="#1FAF8B",
-                symbol="square",
-                opacity=0.95
-            ),
-            text=df_ind_demand["nome_empre"],
-            hovertemplate="<b>%{text}</b><br>" + f"Demanda de {selected_type}: %{marker.size:.0f} t/mês<extra></extra>",
-            name="Demanda Industrial"
-        ))
-
-    match_lines = []
-    total_matched_volume = 0
-
+    # ===== LINHAS DE MATCH =====
     INCLINACAO_PROB = 0.1
     RAIO_MEDIO_KM = 200.0
     LIMIAR_PROB_VIABILIDADE = 0.4
+
+    total_matched_volume = 0
+    match_details = []
 
     for _, mun in df_mun_supply.iterrows():
         for _, ind in df_ind_demand.iterrows():
@@ -377,21 +357,76 @@ with tab2:
 
             if prob >= LIMIAR_PROB_VIABILIDADE:
                 possible_match = min(mun[mun_supply_col], ind["demanda_mensal_ton"]) * prob
+
                 if possible_match > 0.1:
-                    match_lines.append([
-                        mun["lon"], mun["lat"],
-                        ind["lon"], ind["lat"]
-                    ])
                     total_matched_volume += possible_match
 
-    for line in match_lines:
+                    match_details.append({
+                        "municipio": mun["municipio"],
+                        "industria": ind["nome_empre"],
+                        "dist_km": round(dist_km, 1),
+                        "prob": round(prob, 3),
+                        "match_t_mes": round(possible_match, 1),
+                        "mun_lat": mun["lat"],
+                        "mun_lon": mun["lon"],
+                        "ind_lat": ind["lat"],
+                        "ind_lon": ind["lon"]
+                    })
+
+                    fig_map.add_trace(go.Scattermapbox(
+                        lon=[mun["lon"], ind["lon"]],
+                        lat=[mun["lat"], ind["lat"]],
+                        mode="lines",
+                        line=dict(
+                            width=1.2 + 2.8 * prob,
+                            color="rgba(255,255,255,0.22)"
+                        ),
+                        hoverinfo="skip",
+                        showlegend=False
+                    ))
+
+    # ===== MUNICÍPIOS =====
+    if not df_mun_supply.empty:
         fig_map.add_trace(go.Scattermapbox(
-            lon=[line[0], line[2]],
-            lat=[line[1], line[3]],
-            mode="lines",
-            line=dict(width=2, color="rgba(255,255,255,0.25)"),
-            hoverinfo="skip",
-            showlegend=False
+            lat=df_mun_supply["lat"],
+            lon=df_mun_supply["lon"],
+            mode="markers",
+            marker=dict(
+                size=np.clip(df_mun_supply[mun_supply_col] / 1500, 10, 32),
+                color="#F5D547",
+                opacity=0.88
+            ),
+            text=df_mun_supply["municipio"],
+            customdata=np.stack([df_mun_supply[mun_supply_col]], axis=-1),
+            hovertemplate=(
+                "<b>%{text}</b><br>"
+                "Oferta disponível: %{customdata[0]:,.0f} t/mês"
+                "<extra></extra>"
+            ),
+            name="Oferta municipal"
+        ))
+
+    # ===== INDÚSTRIAS =====
+    if not df_ind_demand.empty:
+        fig_map.add_trace(go.Scattermapbox(
+            lat=df_ind_demand["lat"],
+            lon=df_ind_demand["lon"],
+            mode="markers",
+            marker=dict(
+                size=np.clip(df_ind_demand["demanda_mensal_ton"] / 2500, 11, 30),
+                color="#27D3A2",
+                opacity=0.95,
+                symbol="square"
+            ),
+            text=df_ind_demand["nome_empre"],
+            customdata=np.stack([df_ind_demand["demanda_mensal_ton"], df_ind_demand["cidade"]], axis=-1),
+            hovertemplate=(
+                "<b>%{text}</b><br>"
+                "Cidade: %{customdata[1]}<br>"
+                "Demanda: %{customdata[0]:,.0f} t/mês"
+                "<extra></extra>"
+            ),
+            name="Demanda industrial"
         ))
 
     fig_map.update_layout(
@@ -404,44 +439,81 @@ with tab2:
         plot_bgcolor="#03254D",
         font=dict(color="white"),
         title=dict(
-            text=f"Mapa de Oportunidades: Radar Biomassa ({selected_type})",
-            font=dict(color="white", size=18),
+            text=f"Radar Biomassa Territorial ({selected_type})",
+            font=dict(color="white", size=20),
             x=0.01,
             xanchor="left"
         ),
         legend=dict(
             bgcolor="rgba(0,0,0,0)",
-            font=dict(color="white")
+            font=dict(color="white"),
+            orientation="h",
+            yanchor="bottom",
+            y=0.01,
+            xanchor="left",
+            x=0.01
         ),
-        margin=dict(l=10, r=10, t=60, b=10)
+        margin=dict(l=10, r=10, t=60, b=10),
+        height=720
     )
 
     st.plotly_chart(fig_map, use_container_width=True)
 
     col1, col2, col3 = st.columns(3)
+
     total_mun_supply = df_mun_supply[mun_supply_col].sum() if not df_mun_supply.empty else 0
     total_ind_demand = df_ind_demand["demanda_mensal_ton"].sum() if not df_ind_demand.empty else 0
 
-    col1.metric(f"Oferta Municipal Mensal ({selected_type})", f"{total_mun_supply:,.0f} t/mês".replace(",", "."))
-    col2.metric(f"Demanda Industrial Mensal ({selected_type})", f"{total_ind_demand:,.0f} t/mês".replace(",", "."))
+    col1.metric(
+        f"Oferta municipal ({selected_type})",
+        f"{total_mun_supply:,.0f} t/mês".replace(",", ".")
+    )
+    col2.metric(
+        f"Demanda industrial ({selected_type})",
+        f"{total_ind_demand:,.0f} t/mês".replace(",", ".")
+    )
     col3.metric(
-        "Volume Match Esperado Mensal",
+        "Match esperado",
         f"{total_matched_volume:,.0f} t/mês".replace(",", "."),
-        delta=f"{(total_matched_volume / max(total_ind_demand, 1) * 100):.1f}% da demanda atendida"
+        delta=f"{(total_matched_volume / max(total_ind_demand, 1) * 100):.1f}% da demanda"
     )
 
     st.markdown("""
-- **🟡 Círculos Amarelos**: Municípios com oferta disponível do tipo selecionado.
-- **🟢 Quadrados Verdes**: Indústrias com demanda do tipo selecionado.
-- **⚪ Linhas Brancas**: Conexões viáveis por tipo e probabilidade.
+- **Amarelo** = biomassa ofertada por município.  
+- **Verde** = demanda industrial real.  
+- **Linhas claras** = conexões com viabilidade probabilística mínima.
 """)
 
+    with st.expander("Ver matches viáveis"):
+        if match_details:
+            df_match = pd.DataFrame(match_details).rename(columns={
+                "municipio": "Município",
+                "industria": "Indústria",
+                "dist_km": "Distância (km)",
+                "prob": "Probabilidade",
+                "match_t_mes": "Match esperado (t/mês)"
+            })
+            st.dataframe(
+                df_match.sort_values("Match esperado (t/mês)", ascending=False),
+                use_container_width=True,
+                height=320
+            )
+        else:
+            st.info("Nenhum match viável encontrado para os filtros atuais.")
 # =========================
-# TAB 3
+# TAB 3 – RADAR BIOMASSA ESTRATÉGICA
 # =========================
 
 with tab3:
-    st.subheader("Radar Biomassa – onde faz mais sentido atuar")
+    st.subheader("Radar Biomassa Estratégica")
+
+    st.markdown("""
+Cada bolinha mostra a força territorial da biomassa:
+
+- **Eixo X**: distância até o destino industrial.
+- **Eixo Y**: Radar Biomassa = biomassa total × atratividade logística.
+- **Bolha maior**: mais biomassa disponível.
+""")
 
     color_map = {
         "Hub natural": "#1FAF8B",
@@ -460,20 +532,40 @@ with tab3:
         hover_name="municipio",
         labels={
             "Distancia_Km": "Distância até a indústria (km)",
-            "Radar_Biomassa": "Índice Radar Biomassa",
+            "Radar_Biomassa": "Radar Biomassa",
             "tipo_hub": "Tipo de lugar"
         },
-        title="Distância x Radar Biomassa"
+        title="Força Territorial da Biomassa"
+    )
+
+    fig_radar.update_traces(
+        marker=dict(line=dict(width=0.6, color="rgba(255,255,255,0.35)"))
     )
 
     fig_radar.update_layout(
         paper_bgcolor="#03254D",
         plot_bgcolor="#08366A",
         font=dict(color="white"),
-        title_font=dict(color="white", size=18),
-        xaxis=dict(title_font=dict(color="white"), tickfont=dict(color="white")),
-        yaxis=dict(title_font=dict(color="white"), tickfont=dict(color="white")),
-        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="white"))
+        title=dict(
+            text="Força Territorial da Biomassa",
+            font=dict(color="white", size=20),
+            x=0.01,
+            xanchor="left"
+        ),
+        xaxis=dict(
+            title_font=dict(color="white"),
+            tickfont=dict(color="white"),
+            gridcolor="rgba(255,255,255,0.08)"
+        ),
+        yaxis=dict(
+            title_font=dict(color="white"),
+            tickfont=dict(color="white"),
+            gridcolor="rgba(255,255,255,0.08)"
+        ),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="white")
+        )
     )
 
     st.plotly_chart(fig_radar, use_container_width=True)
@@ -481,7 +573,7 @@ with tab3:
     col_pos, col_neg = st.columns(2)
 
     with col_pos:
-        st.markdown("#### Top 10 lugares com maior Radar Biomassa")
+        st.markdown("#### Top 10 maiores forças de biomassa")
         df_top_radar = (
             df_filt[["municipio", "Radar_Biomassa", "Vres_Total_Ton", "tipo_hub", "Polo_Destino", "Distancia_Km"]]
             .sort_values(by="Radar_Biomassa", ascending=False)
@@ -498,12 +590,16 @@ with tab3:
         st.dataframe(df_top_radar, use_container_width=True)
 
     with col_neg:
-        st.markdown("#### Lugares com muita biomassa, mas Radar baixo")
+        st.markdown("#### Biomassa grande, tração baixa")
         vres_mediana = df_filt["Vres_Total_Ton"].median()
+        radar_mediana = df_filt["Radar_Biomassa"].median()
+
         df_garg = df_filt[
             (df_filt["Vres_Total_Ton"] >= vres_mediana) &
-            (df_filt["Radar_Biomassa"] < df_filt["Radar_Biomassa"].median())
-        ][["municipio", "Vres_Total_Ton", "Radar_Biomassa", "Polo_Destino", "Distancia_Km"]].sort_values(by="Radar_Biomassa")
+            (df_filt["Radar_Biomassa"] < radar_mediana)
+        ][["municipio", "Vres_Total_Ton", "Radar_Biomassa", "Polo_Destino", "Distancia_Km"]].sort_values(
+            by="Radar_Biomassa"
+        )
 
         df_garg = df_garg.rename(columns={
             "municipio": "Município",
@@ -512,6 +608,7 @@ with tab3:
             "Polo_Destino": "Indústria mais próxima",
             "Distancia_Km": "Distância (km)",
         })
+
         st.dataframe(df_garg, use_container_width=True)
 
 # =========================
