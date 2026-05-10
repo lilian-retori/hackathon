@@ -20,10 +20,10 @@ possible_logos = [
 LOGO_PATH = next((p for p in possible_logos if p.exists()), None)
 if LOGO_PATH:
     st.logo(str(LOGO_PATH), size="large")
+
+    st.sidebar.image(str(LOGO_PATH), width=220)
 else:
     st.warning("Logo não encontrada. Verifique nome, extensão e pasta do arquivo.")
-
-DATA_PATH = BASE_DIR / "dados_pam_pevs_dashboard_mg.csv"
 
 # =========================
 # ESTILO CUSTOMIZADO
@@ -38,6 +38,16 @@ st.markdown("""
 
 section[data-testid="stSidebar"] {
     background-color: #08366A;
+}
+
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] li,
+section[data-testid="stSidebar"] label {
+    color: #FFFFFF !important;
+    background: transparent !important;
 }
 
 h1, h2, h3, h4, h5, h6, p, li, label {
@@ -102,14 +112,25 @@ ul[role="listbox"] li:hover {
     color: #03254D !important;
 }
 </style>
-""", unsafe_allow_html=True)# =========================
+""", unsafe_allow_html=True)
+
+# =========================
 # LOGO
 # =========================
 
-if LOGO_PATH.exists():
+if LOGO_PATH:
     st.logo(str(LOGO_PATH), size="large")
-else:
-    st.warning("Logo não encontrada. Verifique se o arquivo 'Logo.jpg' está na mesma pasta do app.")
+    st.sidebar.image(str(LOGO_PATH), width=220)
+
+st.sidebar.markdown("## Filtros")
+st.sidebar.markdown(
+    """
+### Como usar
+1. Escolha o ano.
+2. Escolha o tipo de lugar.
+3. Veja o mapa, os gráficos e simule o frete.
+"""
+)
 
 # =========================
 # COORDENADAS
@@ -278,24 +299,38 @@ with tab2:
         }
 
         fig_map = px.scatter_mapbox(
-            df_mapa,
-            lat="lat",
-            lon="lon",
-            size="Vres_Total_Ton",
-            color="tipo_hub",
-            color_discrete_map=color_map,
-            hover_name="municipio",
-            hover_data={
-                "Vres_Total_Ton": True,
-                "Lucro_Liquido_Estimado": True,
-                "lat": False,
-                "lon": False,
-            },
-            zoom=5,
-            center={"lat": -18.5, "lon": -44.0},
-            height=550,
-            title="Onde estão os resíduos e onde o negócio fecha"
-        )
+    df_mapa,
+    lat="lat",
+    lon="lon",
+    size="Vres_Total_Ton",
+    color="tipo_hub",
+    color_discrete_map=color_map,
+    hover_name="municipio",
+    hover_data={
+        "Vres_Total_Ton": True,
+        "Lucro_Liquido_Estimado": True,
+        "lat": False,
+        "lon": False,
+    },
+    zoom=4.7,
+    center={
+        "lat": df_mapa["lat"].mean(),
+        "lon": df_mapa["lon"].mean()
+    },
+    height=700,
+    title="Onde estão os resíduos e onde o negócio fecha"
+)
+
+fig_map.update_layout(
+    mapbox_style="open-street-map",
+    paper_bgcolor="#03254D",
+    plot_bgcolor="#03254D",
+    font=dict(color="white"),
+    legend=dict(bgcolor="rgba(0,0,0,0)"),
+    margin=dict(l=10, r=10, t=60, b=10)
+)
+
+st.plotly_chart(fig_map, use_container_width=True)
 
         fig_map.update_layout(
             mapbox_style="open-street-map",
