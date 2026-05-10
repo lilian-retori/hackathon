@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import base64
+import numpy as np
+from geopy.distance import geodesic
 
 # =========================
 # FUNÇÃO PARA PREPARAR DADOS INDUSTRIAIS (ADICIONE AQUI)
@@ -287,6 +289,7 @@ st.session_state["residue_type_selector"] = residue_type_sel
 df_filt = df[df["ano"] == ano_sel].copy()
 if tipo_hub_sel != "Todos":
     df_filt = df_filt[df_filt["tipo_hub"] == tipo_hub_sel]
+
 # Índice de Radar Biomassa = Vres_Total_Ton * Probabilidade_Atratividade
 if "Probabilidade_Atratividade" in df_filt.columns:
     df_filt["Radar_Biomassa"] = df_filt["Vres_Total_Ton"] * df_filt["Probabilidade_Atratividade"].fillna(0)
@@ -376,22 +379,24 @@ with tab2:
     df_mun = df_filt.copy()
     
     # 2. Preparar dados industriais (da função que já temos no topo do app.py)
-    df_ind = preparar_dados_industriais()
-    
-    # 3. Selecionar tipo de resíduo para análise (do session_state definido na sidebar)
-    selected_type = st.session_state.get("residue_type_selector", "Lenhoso")
-    
-    # 4. Filtrar municípios com oferta >0 do tipo selecionado
-    mun_supply_col = f"Vres_{selected_type}_Mensal"
-    if mun_supply_col not in df_mun.columns:
-        df_mun[mun_supply_col] = 0.0
-    df_mun_supply = df_mun[df_mun[mun_supply_col] > 0].copy()
-    
-    # 5. Filtrar indústrias com demanda >0 do tipo selecionado
-    df_ind_demand = df_ind[
-        (df_ind["tipo_residuo_exigido"] == selected_type) & 
-        (df_ind["demanda_mensal_ton"] > 0)
-    ].copy()
+    BASE_DIR = Path(__file__).parent
+    DATA_PATH = BASE_DIR / "dados_pam_pevs_dashboard_mg.csv"
+    IND_PATH = BASE_DIR / "industrias_biomassa_mg.csv"
+    IND_PATH = BASE_DIR / "industrias_biomassa_mg.csv"
+
+    @st.cache_data
+    def preparar_dados_industriais():
+        if not IND_PATH.exists():
+            st.error("Arquivo industrial não encontrado: industrias_biomassa_mg.csv")
+            st.stop()
+
+        df_ind = pd.read_csv(IND_PATH)
+
+        df_ind["demanda_mensal_ton"] = pd.to_numeric(df_ind["demanda_mensal_ton"], errors="coerce").fillna(0)
+        df_ind["lat"] = pd.to_numeric(df_ind["lat"], errors="coerce")
+        df_ind["lon"] = pd.to_numeric(df_ind["lon"], errors="coerce")
+
+        return df_ind
     
     # ===== CRIAR MAPA BASE =====
     fig_map = px.scatter_mapbox(
@@ -408,20 +413,27 @@ with tab2:
             img_bytes = f.read()
         img_b64 = base64.b64encode(img_bytes).decode()
         fig_map.update_layout(
-            mapbox={
-                "layers": [{
-                    "below": "traces",
-                    "source": {
-                        "type": "image",
-                        "url": f"data:image/png;base64,{img_b64}",
-                        "coordinates": [
-                            [-48.5, -14.0], [-39.5, -14.0],
-                            [-39.5, -22.0], [-48.5, -22.0]
-                        ]
-                    }
-                }]
-            }
-        )
+            mapbox_style="open-street-map",
+            paper_bgcolor="#03254D",
+            plot_bgcolor="#03254D",
+            font=dict(color="white"),
+            title=dict(
+                text=f"Mapa de Oportunidades: Radar Biomassa ({selected_type})",
+                font=dict(color="white", size=18),
+                x=0.01,
+                xanchor="left"
+            ),
+    legend=dict(
+        bgcolor="rgba(0,0,0,0)",
+        bordercolor="rgba(255,255,255,0.2)",
+        font=dict(color="white"),
+        yanchor="top",
+        y=0.99,
+        xanchor="left",
+        x=0.01
+    ),
+    margin=dict(l=10, r=10, t=60, b=10)
+)
     except FileNotFoundError:
         pass  # Continua sem overlay se não houver imagem
     
