@@ -3,17 +3,27 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# =========================
-# CONFIG BÁSICA
-# =========================
-
 st.set_page_config(
     page_title="Do Fogo ao Lucro - PID 3.0",
     layout="wide"
 )
 
-LOGO_PATH = Path("Logo.jpg")
-DATA_PATH = Path("dados_pam_pevs_dashboard_mg.csv")
+BASE_DIR = Path(__file__).parent
+
+possible_logos = [
+    BASE_DIR / "Logo.png",
+    BASE_DIR / "Logo.jpg",
+    BASE_DIR / "logo.png",
+    BASE_DIR / "logo.jpg",
+]
+
+LOGO_PATH = next((p for p in possible_logos if p.exists()), None)
+if LOGO_PATH:
+    st.logo(str(LOGO_PATH), size="large")
+else:
+    st.warning("Logo não encontrada. Verifique nome, extensão e pasta do arquivo.")
+
+DATA_PATH = BASE_DIR / "dados_pam_pevs_dashboard_mg.csv"
 
 # =========================
 # ESTILO CUSTOMIZADO
@@ -21,13 +31,19 @@ DATA_PATH = Path("dados_pam_pevs_dashboard_mg.csv")
 
 st.markdown("""
 <style>
-/* Fundo geral */
 .stApp {
     background-color: #03254D;
     color: #FFFFFF;
 }
 
-/* Blocos principais */
+section[data-testid="stSidebar"] {
+    background-color: #08366A;
+}
+
+h1, h2, h3, h4, h5, h6, p, li, label {
+    color: #FFFFFF;
+}
+
 div[data-testid="stMetric"],
 div[data-testid="stDataFrame"],
 div[data-testid="stPlotlyChart"],
@@ -37,22 +53,6 @@ div[data-testid="stTable"] {
     padding: 0.5rem;
 }
 
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background-color: #08366A;
-}
-
-/* Títulos */
-h1, h2, h3, h4 {
-    color: #FFFFFF;
-}
-
-/* Texto padrão */
-p, li, label, div, span {
-    color: #FFFFFF;
-}
-
-/* Tabs */
 button[data-baseweb="tab"] {
     color: #FFFFFF !important;
 }
@@ -62,33 +62,47 @@ button[data-baseweb="tab"][aria-selected="true"] {
     color: #F5F749 !important;
 }
 
-/* Botões */
 .stButton > button {
     background-color: #550C18;
-    color: white;
+    color: #FFFFFF;
     border-radius: 8px;
     border: none;
 }
 
 .stButton > button:hover {
     background-color: #6E1220;
-    color: white;
+    color: #FFFFFF;
 }
 
-/* Selectbox / slider / inputs */
-div[data-baseweb="select"] > div,
-div[data-testid="stSlider"] {
-    color: white;
-}
-
-/* Caixa de alerta/info */
 div[data-testid="stAlert"] {
     border-radius: 12px;
 }
-</style>
-""", unsafe_allow_html=True)
 
-# =========================
+div[data-baseweb="select"] > div {
+    background-color: #FFFFFF !important;
+    color: #03254D !important;
+    border-radius: 8px;
+}
+
+div[data-baseweb="select"] * {
+    color: #03254D !important;
+}
+
+ul[role="listbox"] {
+    background-color: #FFFFFF !important;
+}
+
+ul[role="listbox"] li {
+    background-color: #FFFFFF !important;
+    color: #03254D !important;
+}
+
+ul[role="listbox"] li:hover {
+    background-color: #EAF0F6 !important;
+    color: #03254D !important;
+}
+</style>
+""", unsafe_allow_html=True)# =========================
 # LOGO
 # =========================
 
