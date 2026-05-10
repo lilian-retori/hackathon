@@ -3,12 +3,18 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+# =========================
+# CONFIG BÁSICA
+# =========================
+
 st.set_page_config(
     page_title="Do Fogo ao Lucro - PID 3.0",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 BASE_DIR = Path(__file__).parent
+DATA_PATH = BASE_DIR / "dados_pam_pevs_dashboard_mg.csv"
 
 possible_logos = [
     BASE_DIR / "Logo.png",
@@ -18,9 +24,9 @@ possible_logos = [
 ]
 
 LOGO_PATH = next((p for p in possible_logos if p.exists()), None)
+
 if LOGO_PATH:
     st.logo(str(LOGO_PATH), size="large")
-
     st.sidebar.image(str(LOGO_PATH), width=220)
 else:
     st.warning("Logo não encontrada. Verifique nome, extensão e pasta do arquivo.")
@@ -38,6 +44,7 @@ st.markdown("""
 
 section[data-testid="stSidebar"] {
     background-color: #08366A;
+    padding-top: 1rem;
 }
 
 section[data-testid="stSidebar"] h1,
@@ -45,7 +52,8 @@ section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3,
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] li,
-section[data-testid="stSidebar"] label {
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] div {
     color: #FFFFFF !important;
     background: transparent !important;
 }
@@ -113,24 +121,6 @@ ul[role="listbox"] li:hover {
 }
 </style>
 """, unsafe_allow_html=True)
-
-# =========================
-# LOGO
-# =========================
-
-if LOGO_PATH:
-    st.logo(str(LOGO_PATH), size="large")
-    st.sidebar.image(str(LOGO_PATH), width=220)
-
-st.sidebar.markdown("## Filtros")
-st.sidebar.markdown(
-    """
-### Como usar
-1. Escolha o ano.
-2. Escolha o tipo de lugar.
-3. Veja o mapa, os gráficos e simule o frete.
-"""
-)
 
 # =========================
 # COORDENADAS
@@ -202,14 +192,14 @@ Cada bolinha no mapa é um município de Minas Gerais.
 # =========================
 
 st.sidebar.markdown("## Filtros")
-st.sidebar.markdown(
-    """
-### Como usar
-1. Escolha o ano.
-2. Escolha o tipo de lugar.
+with st.sidebar.expander("Como usar", expanded=True):
+    st.markdown(
+        """
+1. Escolha o ano.  
+2. Escolha o tipo de lugar.  
 3. Veja o mapa, os gráficos e simule o frete.
 """
-)
+    )
 
 anos = sorted(df["ano"].dropna().unique())
 ano_sel = st.sidebar.selectbox("Ano", anos, index=len(anos) - 1)
@@ -299,48 +289,38 @@ with tab2:
         }
 
         fig_map = px.scatter_mapbox(
-    df_mapa,
-    lat="lat",
-    lon="lon",
-    size="Vres_Total_Ton",
-    color="tipo_hub",
-    color_discrete_map=color_map,
-    hover_name="municipio",
-    hover_data={
-        "Vres_Total_Ton": True,
-        "Lucro_Liquido_Estimado": True,
-        "lat": False,
-        "lon": False,
-    },
-    zoom=4.7,
-    center={
-        "lat": df_mapa["lat"].mean(),
-        "lon": df_mapa["lon"].mean()
-    },
-    height=700,
-    title="Onde estão os resíduos e onde o negócio fecha"
-)
+            df_mapa,
+            lat="lat",
+            lon="lon",
+            size="Vres_Total_Ton",
+            color="tipo_hub",
+            color_discrete_map=color_map,
+            hover_name="municipio",
+            hover_data={
+                "Vres_Total_Ton": True,
+                "Lucro_Liquido_Estimado": True,
+                "lat": False,
+                "lon": False,
+            },
+            zoom=4.7,
+            center={
+                "lat": df_mapa["lat"].mean(),
+                "lon": df_mapa["lon"].mean()
+            },
+            height=700,
+            title="Onde estão os resíduos e onde o negócio fecha"
+        )
 
-fig_map.update_layout(
-    mapbox_style="open-street-map",
-    paper_bgcolor="#03254D",
-    plot_bgcolor="#03254D",
-    font=dict(color="white"),
-    legend=dict(bgcolor="rgba(0,0,0,0)"),
-    margin=dict(l=10, r=10, t=60, b=10)
-)
-
-st.plotly_chart(fig_map, use_container_width=True)
-
-fig_map.update_layout(
+        fig_map.update_layout(
             mapbox_style="open-street-map",
             paper_bgcolor="#03254D",
             plot_bgcolor="#03254D",
             font=dict(color="white"),
-            legend=dict(bgcolor="rgba(0,0,0,0)")
+            legend=dict(bgcolor="rgba(0,0,0,0)"),
+            margin=dict(l=10, r=10, t=60, b=10)
         )
 
-st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, use_container_width=True)
 
 # =========================
 # TAB 3 – LUCRO X DISTÂNCIA
