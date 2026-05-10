@@ -293,67 +293,251 @@ with tab1:
     st.dataframe(df_resumo, use_container_width=True)
 
 # =========================
-# TAB 2 – MAPA
+# TAB 2 – MAPA (COM MATCH REAL INDUSTRIA-MUNICÍPIO)
 # =========================
-
 with tab2:
-    st.subheader("Mapa de oportunidades em Minas Gerais")
+    # --- AVISO METODOLÓGICO ATUALIZADO ---
+    st.warning(
+        """
+        ⚠️ **Avisinho importante (atualizado)**:  
+        Este mapa mostra **match real entre oferta municipal e demanda industrial** por tipo de resíduo e volume mensal.  
+        Baseia-se em:  
+        - Dados industriais reais que você forneceu (localização e consumo anual de 17 cimenteiras e 16 siderúrgicas)  
+        - Separação técnica do resíduo municipal por tipo (lenhoso para siderurgia, agro seco para cimento)  
+        - Suposições de fração coletável (70% do resíduo agrícola é palha seca utilizável)  
+        - Distância máxima de transporte por tipo de indústria (siderurgia: 250 km, cimento: 150 km)  
+        **Volume mostrado = toneladas/mês que poderiam ser realmente trocadas** (não potencial teórico).  
+        Fonte: Sua planilha inicial + IBGE PEVS/PAM 2022 (com fallbacks manuais onde API falhou).
+        """
+    )
+    # --- FIM DO AVISO ---
 
+    st.subheader("Mapa de Oportunidades: Match Indústria - Resíduo")
+
+    # ===== PREPARAR DADOS (MUNICÍPIOS + INDUSTRIAS) =====
+    # 1. Carregar dados municipais (seu df_filt já tem Vres_*_Mensal)
+    df_mun = df_filt.copy()
+    
+    # 2. Preparar dados industriais (do código da Etapa 1)
+    df_ind = preparar_dados_industriais()
+    
+    # 3. Selecionar tipo de resíduo para análise (sidebar já tem isso - vamos usar)
+    selected_type = st.session_state.get("residue_type_selector", "Lenhoso")  # Pega do sidebar
+    
+    # 4. Filtrar municípios com oferta >0 do tipo selecionado
+    mun_supply_col = f"Vres_{selected_type}_Mensal"
+    df_mun_supply = df_mun[df_mun[mun_supply_col] > 0].copy()
+    
+    # 5. Filtrar indústrias com demanda >0 do tipo selecionado
+    df_ind_demand = df_ind[
+        (df_ind["tipo_residuo_exigido"] == selected_type) & 
+        (df_ind["demanda_mensal_ton"] > 0)
+    ].copy()
+    
+    # 6. Definir distâncias máximas por tipo de indústria (km)
+    max_haul_dist = {
+        "Lenhoso": 250,   # Siderurgia aceita maiores distâncias para carvão vegetal
+        "Agro_Seco": 150, # Cimento tem raio menor para resíduos agrícolas secos
+        "Agro_Umido": 100 # Biomass-power tem raio menor (menos comum no seu dados)
+    }
+    max_dist = max_haul_dist.get(selected_type, 150)
+    
+    # ===== CRIAR MAPA BASE =====
+    fig_map = px.scatter_mapbox(
+        lat=[],
+        lon=[],
+        zoom=4.7,
+        center={"lat": -19.5, "lon": -43.5},
+        height=700
+    )
+    
+    # ===== ADICIONAR OVERLAY DAS ESTRADAS (SE EXISTIR) =====
+    try:
+        with open("estradas_mg.png", "rb") as f:
+            img_bytes = f.read()
+        img_b64 = base64.b64encode(img_bytes).decode()
+        fig_map.update_layout(
+            mapbox={
+                "layers": [{
+                    "below": "traces",
+                    "source": {
+                        "type": "image",
+                        "url": f"data:image/png;base64,{img_b64}",
+                        "coordinates": [
+                            [-48.5, -14.0], [-39.5, -14.0],
+                            [-39.5, -22.0], [-48.5, -22.0]
+                        ]
+                    }
+                }]
+            }
+        )
+    except FileNotFoundError:
+        pass  # Continua sem overlay se não houver imagem
+    
+    # ===== ADICIONAR MUNICÍPIOS (OFERTA) =====
+    if not df_mun_supply.empty:
+        fig_map.add_scattermapbox(
+            lat=df_mun_supply["lat"],
+            lon=df_mun_supply["lon"],
+            mode="markers",
+            marker=dict(
+                size=df_mun_supply[mun_supply_col] / 200,  # Ajuste divisor para visualização
+                color="#F5F749",  # Amarelo (oferta disponível)
+                opacity=0.8
+            ),
+            text=df_mun_supply["municipio"],
+            hoverinfo="text",
+            hovertemplate=
+            "<b>%{text}</b><br>" +
+            f"{selected_type} disponível: %{{marker.size:,.0f}} t/mês<extra></extra>",
+            customdata=df_mun_supply[mun_supply_col],
+            name="Oferta Municipal"
+        )
+    
+    # ===== ADICIONAR INDÚSTRIAS (DEMANDA) =====
+    if not df_ind_demand.empty:
+        fig_map.add_scattermapbox(
+            lat=df_ind_demand["lat"],
+            lon=df_ind_demand["lon"],
+            mode="markers",
+            marker=dict(
+                size=df_ind_demand["demanda_mensal_ton"] / 150,  # Divisor diferente para indústrias
+                color="#1FAF8B",  # Verde (demanda industrial)
+                symbol="square",
+                opacity=0.9
+            ),
+            text=df_ind_demand["nome_empre"],
+            hoverinfo="text",
+            hovertemplate=
+            "<b>%{text}</b><br>" +
+            f"Demanda de {selected_type}: %{{marker.size:,.0f}} t/mês<extra></extra>",
+            customdata=df_ind_demand["demanda_mensal_ton"],
+            name="Demanda Industrial"
+        )
+    
+    # ===== ADICIONAR LINHAS DE MATCH VIÁVEL =====
+    match_lines = []
+    total_matched_volume = 0
+    
+    for _, mun in df_mun_supply.iterrows():
+        mun_lat, mun_lon = mun["lat"], mun["lon"]
+        mun_supply_val = mun[mun_supply_col]
+        
+        for _, ind in df_ind_demand.iterrows():
+            ind_lat, ind_lon = ind["lat"], ind["lon"]
+            ind_demand_val = ind["demanda_mensal_ton"]
+            
+            # Calcular distância geodésica
+            dist_km = geodesic((mun_lat, mun_lon), (ind_lat, ind_lon)).km
+            
+            # Verificar se está dentro do raio máximo permitido
+            if dist_km <= max_dist:
+                # Volume que poderia ser trocado = min(oferta municipal, demanda industrial)
+                possible_match = min(mun_supply_val, ind_demand_val)
+                
+                if possible_match > 0.1:  # Só mostra matches significativos
+                    match_lines.append(dict(
+                        type="line",
+                        lon0=mun_lon, lat0=mun_lat,
+                        lon1=ind_lon, lat1=ind_lat,
+                        line=dict(width=1, color="rgba(255,255,255,0.3)"),
+                    ))
+                    total_matched_volume += possible_match
+    
+    # Adicionar linhas de match ao mapa
+    if match_lines:
+        fig_map.update_layout(shapes=match_lines)
+    
+    # ===== CONFIGURAR LAYOUT FINAL =====
+    fig_map.update_layout(
+        mapbox_style="open-street-map",
+        paper_bgcolor="#03254D",
+        plot_bgcolor="#03254D",
+        font=dict(color="white"),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            bordercolor="rgba(255,255,255,0.2)",
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        ),
+        margin=dict(l=10, r=10, t=60, b=10),
+        title=f"Match Real: Oferta Municipal × Demanda Industrial ({selected_type})"
+    )
+    
+    st.plotly_chart(fig_map, use_container_width=True)
+    
+    # ===== MÉTRICAS DE MATCH =====
+    col1, col2, col3 = st.columns(3)
+    
+    total_mun_supply = df_mun_supply[mun_supply_col].sum() if not df_mun_supply.empty else 0
+    total_ind_demand = df_ind_demand["demanda_mensal_ton"].sum() if not df_ind_demand.empty else 0
+    
+    col1.metric(
+        f"Oferta Municipal Mensal ({selected_type})",
+        f"{total_mun_supply:,.0f} t/mês".replace(",", ".")
+    )
+    col2.metric(
+        f"Demanda Industrial Mensal ({selected_type})",
+        f"{total_ind_demand:,.0f} t/mês".replace(",", ".")
+    )
+    col3.metric(
+        "Volume Match Viável Mensal",
+        f"{total_matched_volume:,.0f} t/mês".replace(",", "."),
+        delta=f"{(total_matched_volume / max(total_ind_demand, 1) * 100):.1f}% da demanda atendida"
+    )
+    
+    # ===== LEGENDA E EXPLICAÇÃO =====
     st.markdown(
         """
-- **Verde** = lugar bom para ganhar dinheiro com biomassa.  
-- **Vermelho** = muito resíduo, mas o frete deixa o lugar travado.  
-- **Azul** = oportunidades menores / nicho.  
-- **Cinza** = baixa prioridade.
-"""
+        - **🟡 Círculos Amarelos**: Municípios com oferta disponível do tipo selecionado  
+          (tamanho = toneladas/mês disponíveis)  
+        - **🟢 Quadrados Verdes**: Indústrias com demanda do tipo selecionado  
+          (tamanho = toneladas/mês demandadas; quadrado = indústria)  
+        - **⚪ Linhas Brancas Finas**: Conexões viáveis onde:  
+          • Tipo de resíduo corresponde  
+          • Distância ≤ máximo aceitável pela indústria  
+          • Volume trocado = min(oferta municipal, demanda industrial)  
+        """
     )
+    
+    # ===== TABELA DE MATCHES DETALHADOS (OPCIONAL MAS ÚTIL) =====
+    with st.expander("Ver detalhes dos matches viáveis"):
+        if match_lines and not df_mun_supply.empty and not df_ind_demand.empty:
+            match_details = []
+            for _, mun in df_mun_supply.iterrows():
+                for _, ind in df_ind_demand.iterrows():
+                    dist_km = geodesic((mun["lat"], mun["lon"]), (ind["lat"], ind["lon"])).km
+                    if dist_km <= max_haul_dist.get(selected_type, 150):
+                        possible = min(mun[mun_supply_col], ind["demanda_mensal_ton"])
+                        if possible > 0.1:
+                            match_details.append({
+                                "Município": mun["municipio"],
+                                "Indústria": ind["nome_empre"],
+                                "Distância (km)": round(dist_km, 1),
+                                "Volume Match (t/mês)": round(possible, 1),
+                                "Oferta Município (t/mês)": round(mun[mun_supply_col], 1),
+                                "Demanda Indústria (t/mês)": round(ind["demanda_mensal_ton"], 1)
+                            })
+            
+            if match_details:
+                df_match = pd.DataFrame(match_details)
+                st.dataframe(
+                    df_match.sort_values("Volume Match (t/mês)", ascending=False),
+                    use_container_width=True,
+                    height=300
+                )
+            else:
+                st.info("Nenhum match viável encontrado para os filtros atuais.")
+        else:
+            st.info("Selecione um tipo de resíduo na sidebar para ver matches.")
 
-    df_mapa = df_filt.dropna(subset=["lat", "lon"]).copy()
-
-    if df_mapa.empty:
-        st.info("Ainda não há coordenadas cadastradas para os municípios filtrados.")
-    else:
-        color_map = {
-            "Hub natural": "#1FAF8B",
-            "Hub travado": "#FA441A",
-            "Oportunidade nicho": "#4DA8FF",
-            "Baixa prioridade": "#BECCCC",
-        }
-
-        fig_map = px.scatter_mapbox(
-            df_mapa,
-            lat="lat",
-            lon="lon",
-            size="Vres_Total_Ton",
-            color="tipo_hub",
-            color_discrete_map=color_map,
-            hover_name="municipio",
-            hover_data={
-                "Vres_Total_Ton": True,
-                "Lucro_Liquido_Estimado": True,
-                "lat": False,
-                "lon": False,
-            },
-            zoom=4.7,
-            center={
-                "lat": df_mapa["lat"].mean(),
-                "lon": df_mapa["lon"].mean()
-            },
-            height=700,
-            title="Onde estão os resíduos e onde o negócio fecha"
-        )
-
-        fig_map.update_layout(
-            mapbox_style="open-street-map",
-            paper_bgcolor="#03254D",
-            plot_bgcolor="#03254D",
-            font=dict(color="white"),
-            legend=dict(bgcolor="rgba(0,0,0,0)"),
-            margin=dict(l=10, r=10, t=60, b=10)
-        )
-
-        st.plotly_chart(fig_map, use_container_width=True)
-
+    # Instrução para o usuário
+    st.info(
+        "💡 **Dica**: Use o seletor de 'Tipo de resíduo' na sidebar para alternar entre análise de lenhoso (para siderúrgicas) e agro seco (para cimenteiras). "
+        "O mapa mostrará apenas onde há correspondência real de tipo E volume."
+    )
 # =========================
 # TAB 3 – ONDE VALE A PENA
 # =========================
